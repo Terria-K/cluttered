@@ -185,6 +185,7 @@ pub fn pack(config: PackerConfig) -> anyhow::Result<()> {
                 let length = atlas_json.frames.len();
                 writer.write_usize(length)?;
                 for (frame_key, data) in atlas_json.frames {
+                    let frame_key = frame_key.replace('\\', "/");
                     writer.write_string(frame_key)?;
                     writer.write_u32(data.x)?;
                     writer.write_u32(data.y)?;
