@@ -1,0 +1,16 @@
+PackerConfig(
+    name: "gem-collections",
+    output_path: "out",
+    output_type: Json,
+    folders: [
+        "images/common",
+        "images/rare",
+        "images/legendary"
+    ],
+    options: PackerConfigOptions(
+        max_size: 4096,
+		show_extension: false,
+        // we wouldn't want this to be true for now, it's not working :/
+        rotation: false
+    )
+)
