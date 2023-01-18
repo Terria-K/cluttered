@@ -181,9 +181,9 @@ pub fn pack(config: PackerConfig) -> anyhow::Result<()> {
             OutputType::Binary => {
                 file_path.set_extension("bin");
                 let mut fs = MemoryStream::new();
-                let mut writer = binary_rw::BinaryWriter::new(&mut fs, binary_rw::Endian::Big);
+                let mut writer = binary_rw::BinaryWriter::new(&mut fs, binary_rw::Endian::Little);
                 let length = atlas_json.frames.len();
-                writer.write_usize(length)?;
+                writer.write_u32(length as u32)?;
                 for (frame_key, data) in atlas_json.frames {
                     let frame_key = frame_key.replace('\\', "/");
                     writer.write_string(frame_key)?;
