@@ -1,4 +1,5 @@
 mod atlas;
+mod error;
 use std::path::PathBuf;
 
 use atlas::{PackerConfig, PackerConfigOptions};
@@ -58,6 +59,7 @@ fn main() -> anyhow::Result<()> {
                     name,
                     output_path,
                     output_type,
+                    template_path: None,
                     folders,
                     options: PackerConfigOptions::default()
                 };

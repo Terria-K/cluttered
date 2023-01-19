@@ -1,9 +1,13 @@
 extern crate binary_rw;
-use std::{path::{PathBuf, Path}, collections::HashMap};
+mod output;
+use std::{path::{PathBuf, Path}, collections::{HashMap, BTreeMap}};
 
-use binary_rw::MemoryStream;
 use crunch::{Item, Rotation};
 use image::{RgbaImage, ImageBuffer, GenericImage, GenericImageView};
+
+use crate::error::PackerError;
+
+use self::output::{save_output, JsonOutput, BinaryOutput, RonOutput};
 
 #[derive(serde::Deserialize)]
 pub struct PackerConfig {
@@ -11,14 +15,47 @@ pub struct PackerConfig {
     pub output_path: PathBuf,
     pub output_type: OutputType,
     pub folders: Vec<PathBuf>,
+    pub template_path: Option<PathBuf>,
     pub options: PackerConfigOptions
+}
+
+impl PackerConfig {
+    pub fn from_json(path: PathBuf) -> anyhow::Result<PackerConfig> {
+        let buffer = std::fs::read(path)?;
+        let packer_atlas = serde_json::from_slice::<PackerConfig>(&buffer)?;
+        Ok(packer_atlas)
+    }
+
+    pub fn from_ron(path: PathBuf) -> anyhow::Result<PackerConfig> {
+        let buffer = std::fs::read_to_string(path)?;
+        let packer_atlas = ron::from_str::<PackerConfig>(&buffer)?;
+        Ok(packer_atlas)
+    }
 }
 
 #[derive(serde::Deserialize, clap::ValueEnum, Clone)]
 pub enum OutputType {
     Json,
     Binary,
-    Ron
+    Ron,
+    Template
+}
+
+#[derive(serde::Deserialize)]
+pub struct PackerConfigOptions {
+    max_size: usize,
+    show_extension: bool,
+    rotation: bool
+}
+
+impl Default for PackerConfigOptions {
+    fn default() -> Self {
+        PackerConfigOptions { 
+            max_size: 1024,
+            show_extension: true,
+            rotation: false
+        }
+    }
 }
 
 #[derive(Default, serde::Serialize)]
@@ -57,37 +94,6 @@ impl ImageTexture {
         ImageTexture {
             name, img
         }
-    }
-}
-
-#[derive(serde::Deserialize)]
-pub struct PackerConfigOptions {
-    max_size: usize,
-    show_extension: bool,
-    rotation: bool
-}
-
-impl Default for PackerConfigOptions {
-    fn default() -> Self {
-        PackerConfigOptions { 
-            max_size: 1024,
-            show_extension: true,
-            rotation: false
-        }
-    }
-}
-
-impl PackerConfig {
-    pub fn from_json(path: PathBuf) -> anyhow::Result<PackerConfig> {
-        let buffer = std::fs::read(path)?;
-        let packer_atlas = serde_json::from_slice::<PackerConfig>(&buffer)?;
-        Ok(packer_atlas)
-    }
-
-    pub fn from_ron(path: PathBuf) -> anyhow::Result<PackerConfig> {
-        let buffer = std::fs::read_to_string(path)?;
-        let packer_atlas = ron::from_str::<PackerConfig>(&buffer)?;
-        Ok(packer_atlas)
     }
 }
 
@@ -134,8 +140,8 @@ pub fn pack(config: PackerConfig) -> anyhow::Result<()> {
         } else {
             filename.to_str().unwrap_or_default().to_owned()
         };
-        let img = image::open(file).unwrap().to_rgba8();
-        Some(ImageTexture::new(filename, img))
+        let Ok(img) = image::open(file) else { return None };
+        Some(ImageTexture::new(filename, img.to_rgba8()))
     }).collect();
 
     let items: Vec<Item<&ImageTexture>> = images.iter().enumerate().map(|(_, img)| {
@@ -178,42 +184,31 @@ pub fn pack(config: PackerConfig) -> anyhow::Result<()> {
 
         atlas.save(path)?;
         match config.output_type {
-            OutputType::Json => {
-                file_path.set_extension("json");
-                let packer_atlas = serde_json::to_string_pretty::<PackerAtlas>(&atlas_json)?;
-                let packer_atlas = packer_atlas.replace("\\\\", "/");
-                std::fs::write(file_path, packer_atlas)?;
-            },
-            OutputType::Binary => {
-                file_path.set_extension("bin");
-                let mut fs = MemoryStream::new();
-                let mut writer = binary_rw::BinaryWriter::new(&mut fs, binary_rw::Endian::Little);
-                writer.write_string(atlas_json.sheet_path.to_str().unwrap_or_default())?;
-                let length = atlas_json.frames.len();
-                writer.write_u32(length as u32)?;
-                for (frame_key, data) in atlas_json.frames {
-                    let frame_key = frame_key.replace('\\', "/");
-                    writer.write_string(frame_key)?;
-                    writer.write_u32(data.x)?;
-                    writer.write_u32(data.y)?;
-                    writer.write_u32(data.width)?;
-                    writer.write_u32(data.height)?;
-                }
-
-                let buffer: Vec<u8> = fs.into();
-                std::fs::write(file_path, buffer)?;
-            },
-            OutputType::Ron => {
-                file_path.set_extension("ron");
-                let packer_atlas = ron::to_string::<PackerAtlas>(&atlas_json)?;
-                let packer_atlas = packer_atlas.replace("\\\\", "/");
-                std::fs::write(file_path, packer_atlas)?;
-            },
+            OutputType::Json => save_output::<JsonOutput>(file_path, atlas_json)?,
+            OutputType::Binary => save_output::<BinaryOutput>(file_path, atlas_json)?,
+            OutputType::Ron => save_output::<RonOutput>(file_path, atlas_json)?,
+            OutputType::Template => {
+                let Some(template_path) = config.template_path else { 
+                    Err(PackerError::NoTemplateFile)?
+                };
+                let template = std::fs::read_to_string(&template_path)?;
+                let mut handlerbars = handlebars::Handlebars::new();
+                handlerbars.set_strict_mode(true);
+                handlerbars.register_template_string("t1", template)?;
+                let extension= template_path
+                    .extension()
+                    .unwrap_or_else(|| std::ffi::OsStr::new(""));
+                let template_path = file_path.with_extension(extension);
+                let mut map = BTreeMap::new();
+                map.insert("atlas", atlas_json);
+                let compiled = handlerbars.render("t1", &map)?;
+                let compiled = compiled.replace('\\', "/");
+                std::fs::write(template_path, compiled)?;
+            }
         }
-
         Ok(())
     } else {
-        panic!("failed to packed images")
+        Err(PackerError::FailedToPacked)?
     }
 }
 

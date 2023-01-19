@@ -1,4 +1,6 @@
-# clutter
+# cluttered
+[![crates.io][svg]][link]
+
 A CLI Texture Packer written in rust that can pack a bunch of images optimally based on [crunch-rs](https://github.com/ChevyRay/crunch-rs). Supports many formats as well including json, binary and [ron](https://github.com/ron-rs/ron).
 
 ### Usage
@@ -26,11 +28,11 @@ PackerConfig(
 ```
 Then, in the CLI usage:
 
-`cluttered <FORMAT>-path --input <INPUT>`
+`cluttered config --input <INPUT>`
 
 Example:
 
-`cluttered ron-path --input packer-config.ron`
+`cluttered config --input packer-config.ron`
 
 Alternatively, we can use the manual way, which we can use the argument called `pack`
 
@@ -58,3 +60,6 @@ Example:
     [UInt32] - Width
     [UInt32] - Height
 ```
+
+[svg]: https://img.shields.io/crates/v/cluttered.svg
+[link]: https://crates.io/crates/cluttered
