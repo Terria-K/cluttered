@@ -108,6 +108,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "cluttered"
+version = "0.1.1"
+dependencies = [
+ "anyhow",
+ "binary_rw",
+ "clap",
+ "crunch",
+ "image",
+ "ron",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "color_quant"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -477,21 +492,6 @@ dependencies = [
  "base64",
  "bitflags",
  "serde",
-]
-
-[[package]]
-name = "rummage"
-version = "0.1.1"
-dependencies = [
- "anyhow",
- "binary_rw",
- "clap",
- "crunch",
- "image",
- "ron",
- "serde",
- "serde_json",
- "thiserror",
 ]
 
 [[package]]
