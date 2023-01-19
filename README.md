@@ -25,9 +25,11 @@ PackerConfig(
 )
 ```
 Then, in the CLI usage:
+
 `clutter <FORMAT>-path --input <INPUT>`
 
 Example:
+
 `clutter ron-path --input packer-config.ron`
 
 ### Binary Format
