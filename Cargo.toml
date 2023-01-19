@@ -1,5 +1,5 @@
 [package]
-name = "clutter"
+name = "rummage"
 version = "0.1.1"
 edition = "2021"
 description = "A CLI Texture Packer written in rust"
