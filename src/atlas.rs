@@ -7,15 +7,15 @@ use image::{RgbaImage, ImageBuffer, GenericImage, GenericImageView};
 
 #[derive(serde::Deserialize)]
 pub struct PackerConfig {
-    name: String,
-    output_path: PathBuf,
-    output_type: OutputType,
-    folders: Vec<PathBuf>,
-    options: PackerConfigOptions
+    pub name: String,
+    pub output_path: PathBuf,
+    pub output_type: OutputType,
+    pub folders: Vec<PathBuf>,
+    pub options: PackerConfigOptions
 }
 
-#[derive(serde::Deserialize)]
-enum OutputType {
+#[derive(serde::Deserialize, clap::ValueEnum, Clone)]
+pub enum OutputType {
     Json,
     Binary,
     Ron
@@ -23,6 +23,7 @@ enum OutputType {
 
 #[derive(Default, serde::Serialize)]
 struct PackerAtlas {
+    sheet_path: PathBuf,
     frames: HashMap<String, TextureData>
 }
 
@@ -31,6 +32,10 @@ impl PackerAtlas {
         self.frames.insert(name.into(), TextureData {
             x, y, width, height
         });
+    }
+
+    fn add_sheet_path(&mut self, path: &Path) {
+        self.sheet_path = path.to_path_buf();
     }
 }
 
@@ -56,7 +61,7 @@ impl ImageTexture {
 }
 
 #[derive(serde::Deserialize)]
-struct PackerConfigOptions {
+pub struct PackerConfigOptions {
     max_size: usize,
     show_extension: bool,
     rotation: bool
@@ -161,6 +166,7 @@ pub fn pack(config: PackerConfig) -> anyhow::Result<()> {
         let mut path = config.output_path.clone();
         path.push(&config.name);
         path.set_extension("png");
+        atlas_json.add_sheet_path(&path);
 
         let mut file_path = config.output_path.clone();
         file_path.push(&config.name);
@@ -170,7 +176,7 @@ pub fn pack(config: PackerConfig) -> anyhow::Result<()> {
             std::fs::create_dir_all(&config.output_path)?;
         }
 
-        atlas.save(path).unwrap();
+        atlas.save(path)?;
         match config.output_type {
             OutputType::Json => {
                 file_path.set_extension("json");
@@ -182,6 +188,7 @@ pub fn pack(config: PackerConfig) -> anyhow::Result<()> {
                 file_path.set_extension("bin");
                 let mut fs = MemoryStream::new();
                 let mut writer = binary_rw::BinaryWriter::new(&mut fs, binary_rw::Endian::Little);
+                writer.write_string(atlas_json.sheet_path.to_str().unwrap_or_default())?;
                 let length = atlas_json.frames.len();
                 writer.write_u32(length as u32)?;
                 for (frame_key, data) in atlas_json.frames {

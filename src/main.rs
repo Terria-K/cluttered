@@ -1,7 +1,7 @@
 mod atlas;
 use std::path::PathBuf;
 
-use atlas::PackerConfig;
+use atlas::{PackerConfig, PackerConfigOptions};
 
 use thiserror::Error;
 use clap::{Command, Arg, ArgMatches};
@@ -13,22 +13,58 @@ enum CommandError {
     #[error("There is no available command for that")]
     CommandNotFound,
     #[error("Missing one argument, please use --help")]
-    MissingOneArgument
+    MissingOneArgument,
+    #[error("Unsupported format. Supported Format: .ron, .json")]
+    UnsupportedFormat
 }
 
 fn main() -> anyhow::Result<()> {
     let matches = cli().get_matches();
     match matches.subcommand() {
-        Some(("json-path", sub_matches)) => {
+        Some(("config", sub_matches)) => {
             let input_path = get_path("input", sub_matches)?;
-            let config = PackerConfig::from_json(input_path)?;
-            atlas::pack(config)?;
+            let extension = input_path.extension();
+            if let Some(extension) = extension {
+                let extension = extension.to_str().unwrap_or_default();
+                match extension {
+                    "ron" => {
+                        let config = PackerConfig::from_ron(input_path)?;
+                        atlas::pack(config)?;
+                    }
+                    "json" => {
+                        let config = PackerConfig::from_json(input_path)?;
+                        atlas::pack(config)?;
+                    }
+                    _ => Err(CommandError::UnsupportedFormat)?
+                }
+            }
         },
-        Some(("ron-path", sub_matches)) => {
-            let input_path = get_path("input", sub_matches)?;
-            let config = PackerConfig::from_ron(input_path)?;
-            atlas::pack(config)?;
-        },
+        Some(("pack", sub_matches)) => {
+            if let Some(paths) = sub_matches.get_many::<PathBuf>("input") {
+                let folders: Vec<PathBuf> = paths.map(|x| {
+                    x.to_owned()
+                }).collect();
+                let output_path = get_path("output", sub_matches)?;
+                let name = if let Some(name) = sub_matches.get_one::<String>("name") {
+                    name.to_owned()
+                } else { 
+                    output_path.to_str().unwrap_or("texture-name").to_string()
+                };
+                let output_type = sub_matches
+                    .get_one::<atlas::OutputType>("type")
+                    .unwrap_or(&atlas::OutputType::Json)
+                    .to_owned();
+                let config = PackerConfig {
+                    name,
+                    output_path,
+                    output_type,
+                    folders,
+                    options: PackerConfigOptions::default()
+                };
+                atlas::pack(config)?;
+            }
+
+        }
         _ => Err(CommandError::CommandNotFound)?,
     }
     Ok(())
@@ -47,25 +83,46 @@ fn cli() -> Command {
         .about("Pack an images")
         .subcommand_required(false)
         .subcommand(
-            Command::new("json-path")
-                .about("Specify a .json configuration path.")
+            Command::new("config")
+                .about("Specify a configuration path.")
                 .arg(Arg::new("input")
                      .short('i')
                      .value_parser(clap::value_parser!(PathBuf))
                      .long("input")
                      .required(true)
                      .num_args(1)
-                     .help("Specify an input for .json path to start packing."))
+                     .help("Specify an input for a configuration path to start packing."))
        )
         .subcommand(
-            Command::new("ron-path")
-                .about("Specify a .ron configuration path.")
+            Command::new("pack")
+                .about("Manually packed an image with input and output option.")
                 .arg(Arg::new("input")
                      .short('i')
                      .value_parser(clap::value_parser!(PathBuf))
                      .long("input")
                      .required(true)
+                     .num_args(1..)
+                     .help("Specify many folders path with an images inside."))
+                .arg(Arg::new("output")
+                     .short('o')
+                     .value_parser(clap::value_parser!(PathBuf))
+                     .long("output")
+                     .required(true)
                      .num_args(1)
-                     .help("Specify an input for .ron path to start packing."))
-       )
+                     .help("Specify an output folder path to output a sheet image."))
+                .arg(Arg::new("type")
+                     .short('t')
+                     .value_parser(clap::value_parser!(atlas::OutputType))
+                     .long("type")
+                     .required(false)
+                     .num_args(1)
+                     .help("Specify an output type."))
+                .arg(Arg::new("name")
+                     .short('n')
+                     .value_parser(clap::value_parser!(String))
+                     .long("name")
+                     .required(false)
+                     .num_args(1)
+                     .help("Specify an output name."))
+        )
 }

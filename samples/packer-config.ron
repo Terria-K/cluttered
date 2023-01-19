@@ -1,7 +1,7 @@
 PackerConfig(
     name: "gem-collections",
     output_path: "out",
-    output_type: Json,
+    output_type: Binary,
     folders: [
         "images/common",
         "images/rare",
