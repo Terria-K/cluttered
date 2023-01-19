@@ -26,14 +26,31 @@ PackerConfig(
 ```
 Then, in the CLI usage:
 
-`clutter <FORMAT>-path --input <INPUT>`
+`cluttered <FORMAT>-path --input <INPUT>`
 
 Example:
 
-`clutter ron-path --input packer-config.ron`
+`cluttered ron-path --input packer-config.ron`
+
+Alternatively, we can use the manual way, which we can use the argument called `pack`
+
+
+`cluttered pack --input <[INPUT]> --output <OUTPUT>`
+
+Example:
+
+`cluttered pack --input images/legendary images/rare --output out --type json`
+
+### Pack Arguments
+
+|name         |description|
+|-------------|-----------|
+|--type       |Specify the output type.
+|--name       |Specify the name of the output.
 
 ### Binary Format
 ```
+[String] - Name
 [UInt32] - Count (Use it in for loops below)
   L [String] - Name
     [UInt32] - X
