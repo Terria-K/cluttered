@@ -1,15 +1,15 @@
 extern crate binary_rw;
 mod output;
-use std::{path::{PathBuf, Path}, collections::{HashMap, BTreeMap}};
+use std::{path::{PathBuf, Path}, collections::HashMap};
 
-use crunch::{Item, Rotation};
-use image::{RgbaImage, ImageBuffer, GenericImage, GenericImageView};
+use crunch::{Item, Rotation, Rect};
+use image::{RgbaImage, ImageBuffer, GenericImage, GenericImageView, Rgba};
 
 use crate::error::PackerError;
 
 use self::output::{save_output, JsonOutput, BinaryOutput, RonOutput};
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
 pub struct PackerConfig {
     pub name: String,
     pub output_path: PathBuf,
@@ -33,7 +33,7 @@ impl PackerConfig {
     }
 }
 
-#[derive(serde::Deserialize, clap::ValueEnum, Clone)]
+#[derive(serde::Deserialize, serde::Serialize, clap::ValueEnum, Clone)]
 pub enum OutputType {
     Json,
     Binary,
@@ -41,7 +41,7 @@ pub enum OutputType {
     Template
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
 pub struct PackerConfigOptions {
     max_size: usize,
     show_extension: bool,
@@ -65,9 +65,9 @@ struct PackerAtlas {
 }
 
 impl PackerAtlas {
-    fn add(&mut self, name: &str, x: u32, y: u32, width: u32, height: u32) {
+    fn add(&mut self, name: &str, x: u32, y: u32, width: u32, height: u32, rotated: bool) {
         self.frames.insert(name.into(), TextureData {
-            x, y, width, height
+            x, y, width, height, rotated
         });
     }
 
@@ -82,6 +82,7 @@ struct TextureData {
     y: u32,
     width: u32,
     height: u32,
+    rotated: bool
 }
 
 struct ImageTexture {
@@ -121,9 +122,9 @@ fn get_extension_from_filename(filename: &Path) -> Option<&str> {
 pub fn pack(config: PackerConfig) -> anyhow::Result<()> {
     let mut image_paths = Vec::new();
 
-    for folder in config.folders {
+    for folder in config.folders.iter() {
         let mut paths = Vec::new();
-        visit_dir(folder, &mut paths)?;
+        visit_dir(folder.to_path_buf(), &mut paths)?;
         image_paths.extend(paths);
     }
 
@@ -152,7 +153,7 @@ pub fn pack(config: PackerConfig) -> anyhow::Result<()> {
         Item::new(img, img.img.width() as usize, img.img.height() as usize, rotation)
     }).collect();
 
-    if let Ok((w, h, packed)) = crunch::pack_into_po2(config.options.max_size, items) {
+    if let Ok((w, h, mut packed)) = crunch::pack_into_po2(config.options.max_size, items) {
         let mut atlas_json = PackerAtlas::default();
         let mut atlas: RgbaImage = ImageBuffer::from_fn(
             w as u32, 
@@ -161,12 +162,18 @@ pub fn pack(config: PackerConfig) -> anyhow::Result<()> {
         );
 
         // Pack all images
-        for (rect, img) in &packed {
+        for (rect, image_data) in packed.iter_mut() {
             let (x, y) = (rect.x as u32, rect.y as u32);
-            let (width, height) = (img.img.width(), img.img.height());
-            let view = img.img.view(0, 0, width, height);
+            let img = if rect.rotated {
+                rotate_90(rect, image_data)
+            } else {
+                image_data.img.to_owned()
+            };
+            let (width, height) = (rect.w as u32, rect.h as u32);
+
+            let view = img.view(0, 0, width, height);
             atlas.copy_from(&view, x, y)?;
-            atlas_json.add(&img.name, x, y, rect.w as u32, rect.h as u32);
+            atlas_json.add(&image_data.name, x, y, rect.w as u32, rect.h as u32, rect.rotated);
         }
         
         let mut path = config.output_path.clone();
@@ -188,20 +195,23 @@ pub fn pack(config: PackerConfig) -> anyhow::Result<()> {
             OutputType::Binary => save_output::<BinaryOutput>(file_path, atlas_json)?,
             OutputType::Ron => save_output::<RonOutput>(file_path, atlas_json)?,
             OutputType::Template => {
-                let Some(template_path) = config.template_path else { 
+                let Some(ref template_path) = config.template_path else { 
                     Err(PackerError::NoTemplateFile)?
                 };
-                let template = std::fs::read_to_string(&template_path)?;
+                let template = std::fs::read_to_string(template_path)?;
                 let mut handlerbars = handlebars::Handlebars::new();
                 handlerbars.set_strict_mode(true);
                 handlerbars.register_template_string("t1", template)?;
-                let extension= template_path
+                let extension = template_path
                     .extension()
                     .unwrap_or_else(|| std::ffi::OsStr::new(""));
                 let template_path = file_path.with_extension(extension);
-                let mut map = BTreeMap::new();
-                map.insert("atlas", atlas_json);
-                let compiled = handlerbars.render("t1", &map)?;
+                let globals = TemplateGlobals {
+                    atlas: atlas_json,
+                    config: config.clone()
+                };
+
+                let compiled = handlerbars.render("t1", &globals)?;
                 let compiled = compiled.replace('\\', "/");
                 std::fs::write(template_path, compiled)?;
             }
@@ -209,6 +219,21 @@ pub fn pack(config: PackerConfig) -> anyhow::Result<()> {
         Ok(())
     } else {
         Err(PackerError::FailedToPacked)?
+    }
+}
+
+#[derive(serde::Serialize)]
+struct TemplateGlobals {
+    atlas: PackerAtlas,
+    config: PackerConfig
+}
+
+fn rotate_90(rect: &Rect, image_data: &ImageTexture) 
+    -> ImageBuffer<Rgba<u8>, Vec<u8>> {
+    if rect.rotated {
+        image::imageops::rotate90(&image_data.img)
+    } else {
+        image_data.img.to_owned()
     }
 }
 

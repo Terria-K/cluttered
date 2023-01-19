@@ -1,17 +1,16 @@
 PackerConfig(
     name: "gem-collections",
-    output_path: "out",
-    output_type: Template,
-    template_path: Some("xml-template.xml"),
+    output_path: "samples/out",
+    output_type: Ron,
+    template_path: Some("samples/xml-template.xml"),
     folders: [
-        "images/common",
-        "images/rare",
-        "images/legendary"
+        "samples/images/common",
+        "samples/images/rare",
+        "samples/images/legendary"
     ],
     options: PackerConfigOptions(
         max_size: 4096,
 		show_extension: false,
-        // we wouldn't want this to be true for now, it's not working :/
-        rotation: false
+        rotation: true
     )
 )

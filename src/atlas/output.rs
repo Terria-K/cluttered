@@ -50,6 +50,7 @@ impl Output for BinaryOutput {
             writer.write_u32(data.y)?;
             writer.write_u32(data.width)?;
             writer.write_u32(data.height)?;
+            writer.write_bool(data.rotated)?;
         }
 
         let buffer: Vec<u8> = fs.into();

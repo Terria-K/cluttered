@@ -1,6 +1,6 @@
 [package]
 name = "cluttered"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 description = "A CLI Texture Packer written in rust"
 readme = "README.md"
@@ -12,7 +12,7 @@ categories = ["graphics", "encoding", "command-line-utilities"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-crunch = "0.3.3"
+crunch = { git = "https://github.com/Terria-K/crunch-rs", version = "0.4.0" }
 image = "0.23.8"
 ron = "0.8.0"
 serde = { version = "1.0.152", features = ["derive"] }

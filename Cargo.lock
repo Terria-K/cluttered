@@ -118,7 +118,7 @@ dependencies = [
 
 [[package]]
 name = "cluttered"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "binary_rw",
@@ -201,9 +201,8 @@ dependencies = [
 
 [[package]]
 name = "crunch"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ec1ceeb2c7de0839185c61e990ea3416be50cb55930d421402ef891db0eef76"
+version = "0.4.0"
+source = "git+https://github.com/Terria-K/crunch-rs#ffe29276017392fdbadda0f8918572dd4da438aa"
 
 [[package]]
 name = "crypto-common"

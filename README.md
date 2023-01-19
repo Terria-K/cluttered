@@ -21,7 +21,6 @@ PackerConfig(
     options: PackerConfigOptions(
         max_size: 4096,
         show_extension: false,
-        // we wouldn't want this to be true for now, it's not working :/
         rotation: false
     )
 )
@@ -43,14 +42,14 @@ Example:
 
 `cluttered pack --input images/legendary images/rare --output out --type json`
 
-### Pack Arguments
+## Pack Arguments
 
 |name         |description|
 |-------------|-----------|
 |--type       |Specify the output type.
 |--name       |Specify the name of the output.
 
-### Binary Format
+## Binary Format
 ```
 [String] - Name
 [UInt32] - Count (Use it in for loops below)
@@ -63,3 +62,65 @@ Example:
 
 [svg]: https://img.shields.io/crates/v/cluttered.svg
 [link]: https://crates.io/crates/cluttered
+
+## Template
+We also support custom template with [handlebars](https://handlebarsjs.com/guide/block-helpers.html) write your own custom template to support your favourite format or make a new one.
+
+Example usage on xml format:
+```xml
+<TextureAtlas imagePath="{{atlas.sheet_path}}">
+  {{#each atlas.frames as frame}}
+  <Texture name="{{@key}}" x="{{this.x}}" y="{{this.y}}" width="{{this.width}}" height="{{this.height}}" rotated="{{this.rotated}}"/>
+  {{/each}}
+</TextureAtlas>
+```
+
+## Global Variables
+|Name         |Type       |
+|-------------|-----------|
+|config       |PackerConfig
+|atlas        |PackerAtlas
+
+
+### PackerConfig
+
+|Name         |Type       |
+|-------------|-----------|
+|name         |String
+|output_path  |String
+|output_type  |OutputType/String
+|folders      |String[]
+|template_path|String?
+|options      |PackerConfigOptions
+
+### OutputType
+|Name         |
+|-------------|
+|Json         |
+|Binary       |
+|Ron          |
+|Template     |
+
+
+### PackerConfigOptions
+|Name          |Type       |
+|--------------|-----------|
+|max_size      |int
+|show_extension|bool
+|rotation      |bool
+
+
+### PackerAtlas
+|Name          |Type       |
+|--------------|-----------|
+|sheet_path    |String
+|frames        |HashMap<String, TextureData>
+
+### TextureData
+|Name          |Type       |
+|--------------|-----------|
+|x             |int
+|y             |int
+|width         |int
+|height        |int
+|rotated       |bool
