@@ -20,8 +20,7 @@ PackerConfig(
     ],
     options: PackerConfigOptions(
         max_size: 4096,
-        show_extension: false,
-        rotation: false
+        show_extension: false
     )
 )
 ```
@@ -70,7 +69,7 @@ Example usage on xml format:
 ```xml
 <TextureAtlas imagePath="{{atlas.sheet_path}}">
   {{#each atlas.frames as frame}}
-  <Texture name="{{@key}}" x="{{this.x}}" y="{{this.y}}" width="{{this.width}}" height="{{this.height}}" rotated="{{this.rotated}}"/>
+  <Texture name="{{@key}}" x="{{this.x}}" y="{{this.y}}" width="{{this.width}}" height="{{this.height}}"/>
   {{/each}}
 </TextureAtlas>
 ```
@@ -107,7 +106,6 @@ Example usage on xml format:
 |--------------|-----------|
 |max_size      |int
 |show_extension|bool
-|rotation      |bool
 
 
 ### PackerAtlas
@@ -123,4 +121,3 @@ Example usage on xml format:
 |y             |int
 |width         |int
 |height        |int
-|rotated       |bool

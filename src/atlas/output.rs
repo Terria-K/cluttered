@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use binary_rw::MemoryStream;
+use binary_rw::{MemoryStream, BinaryWriter};
 
 use super::PackerAtlas;
 
@@ -45,18 +45,26 @@ impl Output for BinaryOutput {
         writer.write_u32(length as u32)?;
         for (frame_key, data) in atlas.frames {
             let frame_key = frame_key.replace('\\', "/");
-            writer.write_string(frame_key)?;
+            write_sharp_string(&mut writer, frame_key)?;
+            //writer.write_string(frame_key)?;
             writer.write_u32(data.x)?;
             writer.write_u32(data.y)?;
             writer.write_u32(data.width)?;
             writer.write_u32(data.height)?;
-            writer.write_bool(data.rotated)?;
         }
 
         let buffer: Vec<u8> = fs.into();
         std::fs::write(path, buffer)?;
         Ok(())
     }
+}
+
+fn write_sharp_string<S>(writer: &mut BinaryWriter, value: S) -> anyhow::Result<()>
+where S: AsRef<str> {
+    let bytes = value.as_ref().as_bytes();
+    writer.write_u8(bytes.len() as u8)?;
+    writer.write_bytes(bytes)?;
+    Ok(())
 }
 
 pub(super) fn save_output<T>(path: PathBuf, atlas: PackerAtlas) -> anyhow::Result<()>

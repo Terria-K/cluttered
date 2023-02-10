@@ -2,8 +2,8 @@ extern crate binary_rw;
 mod output;
 use std::{path::{PathBuf, Path}, collections::HashMap};
 
-use crunch::{Item, Rotation, Rect};
-use image::{RgbaImage, ImageBuffer, GenericImage, GenericImageView, Rgba};
+use crunch::{Item, Rotation};
+use image::{RgbaImage, ImageBuffer, GenericImage, GenericImageView};
 
 use crate::error::PackerError;
 
@@ -44,8 +44,7 @@ pub enum OutputType {
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
 pub struct PackerConfigOptions {
     max_size: usize,
-    show_extension: bool,
-    rotation: bool
+    show_extension: bool
 }
 
 impl Default for PackerConfigOptions {
@@ -53,7 +52,6 @@ impl Default for PackerConfigOptions {
         PackerConfigOptions { 
             max_size: 1024,
             show_extension: true,
-            rotation: false
         }
     }
 }
@@ -65,9 +63,9 @@ struct PackerAtlas {
 }
 
 impl PackerAtlas {
-    fn add(&mut self, name: &str, x: u32, y: u32, width: u32, height: u32, rotated: bool) {
+    fn add(&mut self, name: &str, x: u32, y: u32, width: u32, height: u32) {
         self.frames.insert(name.into(), TextureData {
-            x, y, width, height, rotated
+            x, y, width, height
         });
     }
 
@@ -82,7 +80,6 @@ struct TextureData {
     y: u32,
     width: u32,
     height: u32,
-    rotated: bool
 }
 
 struct ImageTexture {
@@ -145,15 +142,11 @@ pub fn pack(config: PackerConfig) -> anyhow::Result<()> {
         Some(ImageTexture::new(filename, img.to_rgba8()))
     }).collect();
 
-    let items: Vec<Item<&ImageTexture>> = images.iter().enumerate().map(|(_, img)| {
-        let rotation = match config.options.rotation {
-            true => Rotation::Allowed,
-            false => Rotation::None
-        };
-        Item::new(img, img.img.width() as usize, img.img.height() as usize, rotation)
-    }).collect();
+    let items: Vec<Item<&ImageTexture>> = images.iter().enumerate().map(|(_, img)| 
+        Item::new(img, img.img.width() as usize, img.img.height() as usize, Rotation::None)
+    ).collect();
 
-    if let Ok((w, h, mut packed)) = crunch::pack_into_po2(config.options.max_size, items) {
+    if let Ok((w, h, packed)) = crunch::pack_into_po2(config.options.max_size, items) {
         let mut atlas_json = PackerAtlas::default();
         let mut atlas: RgbaImage = ImageBuffer::from_fn(
             w as u32, 
@@ -162,18 +155,14 @@ pub fn pack(config: PackerConfig) -> anyhow::Result<()> {
         );
 
         // Pack all images
-        for (rect, image_data) in packed.iter_mut() {
+        for (rect, image_data) in packed {
             let (x, y) = (rect.x as u32, rect.y as u32);
-            let img = if rect.rotated {
-                rotate_90(rect, image_data)
-            } else {
-                image_data.img.to_owned()
-            };
             let (width, height) = (rect.w as u32, rect.h as u32);
+            let img = image_data.img.to_owned();
 
             let view = img.view(0, 0, width, height);
             atlas.copy_from(&view, x, y)?;
-            atlas_json.add(&image_data.name, x, y, rect.w as u32, rect.h as u32, rect.rotated);
+            atlas_json.add(&image_data.name, x, y, rect.w as u32, rect.h as u32);
         }
         
         let mut path = config.output_path.clone();
@@ -183,7 +172,6 @@ pub fn pack(config: PackerConfig) -> anyhow::Result<()> {
 
         let mut file_path = config.output_path.clone();
         file_path.push(&config.name);
-
 
         if !config.output_path.is_dir() {
             std::fs::create_dir_all(&config.output_path)?;
@@ -227,13 +215,3 @@ struct TemplateGlobals {
     atlas: PackerAtlas,
     config: PackerConfig
 }
-
-fn rotate_90(rect: &Rect, image_data: &ImageTexture) 
-    -> ImageBuffer<Rgba<u8>, Vec<u8>> {
-    if rect.rotated {
-        image::imageops::rotate90(&image_data.img)
-    } else {
-        image_data.img.to_owned()
-    }
-}
-
