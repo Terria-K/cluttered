@@ -61,8 +61,8 @@ Example:
 ```
 
 [crates-svg]: https://img.shields.io/crates/v/cluttered.svg
-[github-svg]: https://img.shields.io/github/v/release/flother/spreet
-[github-link]: https://github.com/flother/spreet/releases
+[github-svg]: https://img.shields.io/github/v/release/Terria-K/cluttered
+[github-link]: https://github.com/Terria-K/cluttered/releases
 [crates-link]: https://crates.io/crates/cluttered
 
 ## Template
