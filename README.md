@@ -1,5 +1,6 @@
 # cluttered
-[![crates.io][svg]][link]
+[![crates.io][crates-svg]][crates-link] [![github][github-svg]][github-link]
+
 
 A CLI Texture Packer written in rust that can pack a bunch of images optimally based on [crunch-rs](https://github.com/ChevyRay/crunch-rs). Supports many formats as well including json, binary and [ron](https://github.com/ron-rs/ron).
 
@@ -59,8 +60,10 @@ Example:
     [UInt32] - Height
 ```
 
-[svg]: https://img.shields.io/crates/v/cluttered.svg
-[link]: https://crates.io/crates/cluttered
+[crates-svg]: https://img.shields.io/crates/v/cluttered.svg
+[github-svg]: https://img.shields.io/github/v/release/flother/spreet
+[github-link]: https://github.com/flother/spreet/releases
+[crates-link]: https://crates.io/crates/cluttered
 
 ## Template
 We also support custom template with [handlebars](https://handlebarsjs.com/guide/block-helpers.html) write your own custom template to support your favourite format or make a new one.

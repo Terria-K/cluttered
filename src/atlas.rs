@@ -7,7 +7,7 @@ use image::{RgbaImage, ImageBuffer, GenericImage, GenericImageView};
 
 use crate::error::PackerError;
 
-use self::output::{save_output, JsonOutput, BinaryOutput, RonOutput};
+use self::output::{save_output, JsonOutput, BinaryOutput, RonOutput, save_output_from, TemplateOutput};
 
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
 pub struct PackerConfig {
@@ -182,27 +182,9 @@ pub fn pack(config: PackerConfig) -> anyhow::Result<()> {
             OutputType::Json => save_output::<JsonOutput>(file_path, atlas_json)?,
             OutputType::Binary => save_output::<BinaryOutput>(file_path, atlas_json)?,
             OutputType::Ron => save_output::<RonOutput>(file_path, atlas_json)?,
-            OutputType::Template => {
-                let Some(ref template_path) = config.template_path else { 
-                    Err(PackerError::NoTemplateFile)?
-                };
-                let template = std::fs::read_to_string(template_path)?;
-                let mut handlerbars = handlebars::Handlebars::new();
-                handlerbars.set_strict_mode(true);
-                handlerbars.register_template_string("t1", template)?;
-                let extension = template_path
-                    .extension()
-                    .unwrap_or_else(|| std::ffi::OsStr::new(""));
-                let template_path = file_path.with_extension(extension);
-                let globals = TemplateGlobals {
-                    atlas: atlas_json,
-                    config: config.clone()
-                };
-
-                let compiled = handlerbars.render("t1", &globals)?;
-                let compiled = compiled.replace('\\', "/");
-                std::fs::write(template_path, compiled)?;
-            }
+            OutputType::Template => save_output_from(
+                TemplateOutput(config), file_path, atlas_json
+            )?
         }
         Ok(())
     } else {
