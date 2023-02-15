@@ -78,6 +78,12 @@ impl Output for BinaryOutput {
             writer.write_u32(data.y)?;
             writer.write_u32(data.width)?;
             writer.write_u32(data.height)?;
+            if let Some(nine_patch) = data.nine_patch {
+                writer.write_u32(nine_patch.x)?;
+                writer.write_u32(nine_patch.y)?;
+                writer.write_u32(nine_patch.w)?;
+                writer.write_u32(nine_patch.h)?;
+            }
         }
 
         let buffer: Vec<u8> = fs.into();

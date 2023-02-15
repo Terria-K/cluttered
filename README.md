@@ -21,7 +21,10 @@ PackerConfig(
     ],
     options: PackerConfigOptions(
         max_size: 4096,
-        show_extension: false
+        show_extension: false,
+        features: (
+            nine_patch: true 
+        )
     )
 )
 ```
@@ -58,6 +61,10 @@ Example:
     [UInt32] - Y
     [UInt32] - Width
     [UInt32] - Height
+    [UInt32] - X (if nine_patch is enabled and has a file)
+    [UInt32] - Y (if nine_patch is enabled and has a file)
+    [UInt32] - W (if nine_patch is enabled and has a file)
+    [UInt32] - H (if nine_patch is enabled and has a file)
 ```
 
 [crates-svg]: https://img.shields.io/crates/v/cluttered.svg
@@ -72,7 +79,15 @@ Example usage on xml format:
 ```xml
 <TextureAtlas imagePath="{{atlas.sheet_path}}">
   {{#each atlas.frames as frame}}
-  <Texture name="{{@key}}" x="{{this.x}}" y="{{this.y}}" width="{{this.width}}" height="{{this.height}}"/>
+  <Texture 
+      name="{{@key}}" 
+      x="{{this.x}}" y="{{this.y}}" 
+      width="{{this.width}}" height="{{this.height}}"
+      {{#if this.nine_patch}}
+      nx="{{this.nine_patch.x}}" ny="{{this.nine_patch.y}}"
+      nw="{{this.nine_patch.w}}" nh="{{this.nine_patch.h}}"
+      {{/if}}
+    />
   {{/each}}
 </TextureAtlas>
 ```
@@ -109,7 +124,12 @@ Example usage on xml format:
 |--------------|-----------|
 |max_size      |int
 |show_extension|bool
+|features      |Features
 
+### Features
+|Name          |Type       |
+|--------------|-----------|
+|nine_patch    |bool
 
 ### PackerAtlas
 |Name          |Type       |
@@ -124,3 +144,12 @@ Example usage on xml format:
 |y             |int
 |width         |int
 |height        |int
+|nine_patch    |Option<Rect>
+
+### Rect
+|Name          |Type       |
+|--------------|-----------|
+|x             |int
+|y             |int
+|w             |int
+|h             |int

@@ -44,7 +44,13 @@ pub enum OutputType {
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
 pub struct PackerConfigOptions {
     max_size: usize,
-    show_extension: bool
+    show_extension: bool,
+    features: Features
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Default)]
+pub struct Features {
+    nine_patch: bool
 }
 
 impl Default for PackerConfigOptions {
@@ -52,6 +58,7 @@ impl Default for PackerConfigOptions {
         PackerConfigOptions { 
             max_size: 1024,
             show_extension: true,
+            features: Features::default()
         }
     }
 }
@@ -63,9 +70,15 @@ struct PackerAtlas {
 }
 
 impl PackerAtlas {
-    fn add(&mut self, name: &str, x: u32, y: u32, width: u32, height: u32) {
+    fn add(
+        &mut self, 
+        name: &str, 
+        x: u32, y: u32, 
+        width: u32, height: u32, 
+        nine_patch: Option<Rect>
+    ) {
         self.frames.insert(name.into(), TextureData {
-            x, y, width, height
+            x, y, width, height, nine_patch
         });
     }
 
@@ -74,23 +87,31 @@ impl PackerAtlas {
     }
 }
 
+#[derive(serde::Deserialize, serde::Serialize, Clone, Copy)]
+struct Rect {
+    x: u32, y: u32,
+    w: u32, h: u32,
+}
+
 #[derive(serde::Serialize)]
 struct TextureData {
     x: u32,
     y: u32,
     width: u32,
     height: u32,
+    nine_patch: Option<Rect>
 }
 
 struct ImageTexture {
     name: String,
-    img: RgbaImage
+    img: RgbaImage,
+    nine_patch: Option<Rect>
 }
 
 impl ImageTexture {
-    const fn new(name: String, img: RgbaImage) -> Self {
+    const fn new(name: String, img: RgbaImage, nine_patch: Option<Rect>) -> Self {
         ImageTexture {
-            name, img
+            name, img, nine_patch
         }
     }
 }
@@ -116,35 +137,44 @@ fn get_extension_from_filename(filename: &Path) -> Option<&str> {
         .and_then(std::ffi::OsStr::to_str)
 }
 
+fn find_nine_patch_file(filename: &Path) -> Option<Rect> {
+    let filename = filename.with_extension("json");
+    let Ok(file) = std::fs::read_to_string(&filename) else { 
+        let Ok(file) = std::fs::read_to_string(filename.with_extension("ron")) else { return None };
+        let Ok(rect) = ron::from_str::<Rect>(&file) else { return None };
+        return Some(rect);
+    };
+    let Ok(rect) = serde_json::from_str::<Rect>(&file) else { return None };
+    Some(rect)
+}
+
 pub fn pack(config: PackerConfig) -> anyhow::Result<()> {
-    let mut image_paths = Vec::new();
+    let mut image_paths = vec![];
 
     for folder in config.folders.iter() {
-        let mut paths = Vec::new();
-        visit_dir(folder.to_path_buf(), &mut paths)?;
-        image_paths.extend(paths);
+        visit_dir(folder.to_path_buf(), &mut image_paths)?;
     }
 
-    let images: Vec<ImageTexture> = image_paths.iter().filter_map(|file| {
-        let filename = file;
-        let ext = get_extension_from_filename(filename);
-        if ext != Some("png") {
+    let images = image_paths.iter().filter_map(|file| {
+        if get_extension_from_filename(file) != Some("png") {
             return None;
         }
-        println!("Found {}",filename.display());
+        println!("Found {}", file.display());
+        let nine_patch = if config.options.features.nine_patch {
+            find_nine_patch_file(file)
+        } else { None };
         let filename = if !config.options.show_extension {
-            filename.with_extension("")
-                .to_str().unwrap_or_default().to_owned()
+            file.with_extension("").to_str().unwrap_or_default().to_owned()
         } else {
-            filename.to_str().unwrap_or_default().to_owned()
+            file.to_str().unwrap_or_default().to_owned()
         };
         let Ok(img) = image::open(file) else { return None };
-        Some(ImageTexture::new(filename, img.to_rgba8()))
-    }).collect();
+        Some(ImageTexture::new(filename, img.to_rgba8(), nine_patch))
+    }).collect::<Vec<ImageTexture>>();
 
-    let items: Vec<Item<&ImageTexture>> = images.iter().enumerate().map(|(_, img)| 
+    let items = images.iter().map(|img| 
         Item::new(img, img.img.width() as usize, img.img.height() as usize, Rotation::None)
-    ).collect();
+    ).collect::<Vec<Item<&ImageTexture>>>();
 
     if let Ok((w, h, packed)) = crunch::pack_into_po2(config.options.max_size, items) {
         let mut atlas_json = PackerAtlas::default();
@@ -158,11 +188,11 @@ pub fn pack(config: PackerConfig) -> anyhow::Result<()> {
         for (rect, image_data) in packed {
             let (x, y) = (rect.x as u32, rect.y as u32);
             let (width, height) = (rect.w as u32, rect.h as u32);
-            let img = image_data.img.to_owned();
 
-            let view = img.view(0, 0, width, height);
+            let view = image_data.img.view(0, 0, width, height);
             atlas.copy_from(&view, x, y)?;
-            atlas_json.add(&image_data.name, x, y, rect.w as u32, rect.h as u32);
+            atlas_json.add(
+                &image_data.name, x, y, rect.w as u32, rect.h as u32, image_data.nine_patch);
         }
         
         let mut path = config.output_path.clone();

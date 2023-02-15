@@ -1,16 +1,20 @@
 PackerConfig(
     name: "gem-collections",
     output_path: "samples/out",
-    output_type: Ron,
+    output_type: Template,
     template_path: Some("samples/xml-template.xml"),
     folders: [
         "samples/images/common",
         "samples/images/rare",
-        "samples/images/legendary"
+        "samples/images/legendary",
+        "samples/images/rect"
     ],
     options: PackerConfigOptions(
         max_size: 4096,
 		show_extension: false,
-        rotation: true
+        color_key: Color(r: 255, g: 0, b: 0, a: 255),
+        features: (
+            nine_patch: true
+        )
     )
 )
