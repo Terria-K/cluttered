@@ -4,6 +4,8 @@
 
 A CLI Texture Packer written in rust that can pack a bunch of images optimally based on [crunch-rs](https://github.com/ChevyRay/crunch-rs). Supports many formats as well including json, binary and [ron](https://github.com/ron-rs/ron).
 
+It can be used for games with Godot, Monogame or a bunch more that needed to optimize the memory usage.
+
 ### Usage
 This CLI Texture Packer is based around the config file, which you would have to create in order to pack the images.
 Example content of the config file with ron format:
