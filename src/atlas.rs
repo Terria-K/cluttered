@@ -16,6 +16,7 @@ pub struct PackerConfig {
     pub output_type: OutputType,
     pub folders: Vec<PathBuf>,
     pub template_path: Option<PathBuf>,
+    #[serde(default)]
     pub options: PackerConfigOptions
 }
 
@@ -45,6 +46,7 @@ pub enum OutputType {
 pub struct PackerConfigOptions {
     max_size: usize,
     show_extension: bool,
+    #[serde(default)]
     features: Features
 }
 
@@ -99,6 +101,8 @@ struct TextureData {
     y: u32,
     width: u32,
     height: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     nine_patch: Option<Rect>
 }
 
@@ -210,7 +214,7 @@ pub fn pack(config: PackerConfig) -> anyhow::Result<()> {
         atlas.save(path)?;
         match config.output_type {
             OutputType::Json => save_output::<JsonOutput>(file_path, atlas_json)?,
-            OutputType::Binary => save_output::<BinaryOutput>(file_path, atlas_json)?,
+            OutputType::Binary => save_output_from(BinaryOutput(config), file_path, atlas_json)?,
             OutputType::Ron => save_output::<RonOutput>(file_path, atlas_json)?,
             OutputType::Template => save_output_from(
                 TemplateOutput(config), file_path, atlas_json

@@ -63,6 +63,7 @@ Example:
     [UInt32] - Y
     [UInt32] - Width
     [UInt32] - Height
+    [Bool] - HasNinePatch (if nine_patch is enabled)
     [UInt32] - X (if nine_patch is enabled and has a file)
     [UInt32] - Y (if nine_patch is enabled and has a file)
     [UInt32] - W (if nine_patch is enabled and has a file)

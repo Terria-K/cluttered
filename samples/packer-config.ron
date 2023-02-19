@@ -1,7 +1,7 @@
 PackerConfig(
     name: "gem-collections",
     output_path: "samples/out",
-    output_type: Template,
+    output_type: Binary,
     template_path: Some("samples/xml-template.xml"),
     folders: [
         "samples/images/common",

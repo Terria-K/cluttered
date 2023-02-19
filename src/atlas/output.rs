@@ -15,8 +15,8 @@ pub(super) trait Output {
 pub(super) struct JsonOutput;
 #[derive(Default)]
 pub(super) struct RonOutput;
-#[derive(Default)]
-pub(super) struct BinaryOutput;
+
+pub(super) struct BinaryOutput(pub(super) PackerConfig);
 
 pub(super) struct TemplateOutput(pub(super) PackerConfig);
 
@@ -78,6 +78,10 @@ impl Output for BinaryOutput {
             writer.write_u32(data.y)?;
             writer.write_u32(data.width)?;
             writer.write_u32(data.height)?;
+            if !self.0.options.features.nine_patch {
+                continue;
+            }
+            writer.write_bool(data.nine_patch.is_some())?;
             if let Some(nine_patch) = data.nine_patch {
                 writer.write_u32(nine_patch.x)?;
                 writer.write_u32(nine_patch.y)?;
