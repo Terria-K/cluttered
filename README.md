@@ -98,7 +98,7 @@ Example usage on xml format:
 ## Global Variables
 |Name         |Type       |
 |-------------|-----------|
-|config       |PackerConfig
+|config       |Config
 |atlas        |PackerAtlas
 
 
