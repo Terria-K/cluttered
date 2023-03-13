@@ -2,7 +2,7 @@ mod atlas;
 mod error;
 use std::path::PathBuf;
 
-use atlas::{PackerConfig, PackerConfigOptions};
+use atlas::{Config, ImageOptions, Features};
 
 use thiserror::Error;
 use clap::{Command, Arg, ArgMatches};
@@ -15,7 +15,7 @@ enum CommandError {
     CommandNotFound,
     #[error("Missing one argument, please use --help")]
     MissingOneArgument,
-    #[error("Unsupported format. Supported Format: .ron, .json")]
+    #[error("Unsupported format. Supported Format: .ron, .json, .toml")]
     UnsupportedFormat
 }
 
@@ -29,11 +29,15 @@ fn main() -> anyhow::Result<()> {
                 let extension = extension.to_str().unwrap_or_default();
                 match extension {
                     "ron" => {
-                        let config = PackerConfig::from_ron(input_path)?;
+                        let config = Config::from_ron(input_path)?;
                         atlas::pack(config)?;
                     }
                     "json" => {
-                        let config = PackerConfig::from_json(input_path)?;
+                        let config = Config::from_json(input_path)?;
+                        atlas::pack(config)?;
+                    }
+                    "toml" => {
+                        let config = Config::from_toml(input_path)?;
                         atlas::pack(config)?;
                     }
                     _ => Err(CommandError::UnsupportedFormat)?
@@ -51,17 +55,21 @@ fn main() -> anyhow::Result<()> {
                 } else { 
                     output_path.to_str().unwrap_or("texture-name").to_string()
                 };
+                let template_path = sub_matches
+                    .get_one::<PathBuf>("template_path")
+                    .map(|x| x.to_owned());
                 let output_type = sub_matches
                     .get_one::<atlas::OutputType>("type")
                     .unwrap_or(&atlas::OutputType::Json)
                     .to_owned();
-                let config = PackerConfig {
+                let config = Config {
                     name,
                     output_path,
                     output_type,
-                    template_path: None,
+                    template_path,
                     folders,
-                    options: PackerConfigOptions::default()
+                    image_options: ImageOptions::default(),
+                    features: Features::default(),
                 };
                 atlas::pack(config)?;
             }
@@ -119,6 +127,13 @@ fn cli() -> Command {
                      .required(false)
                      .num_args(1)
                      .help("Specify an output type."))
+                .arg(Arg::new("templatepath")
+                     .short('a')
+                     .value_parser(clap::value_parser!(PathBuf))
+                     .long("template_path")
+                     .required(false)
+                     .num_args(1)
+                     .help("Specify a Template path for template."))
                 .arg(Arg::new("name")
                      .short('n')
                      .value_parser(clap::value_parser!(String))

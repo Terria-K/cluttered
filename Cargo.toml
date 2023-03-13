@@ -15,6 +15,8 @@ categories = ["graphics", "encoding", "command-line-utilities"]
 crunch = "0.3.3"
 image = "0.23.8"
 ron = "0.8.0"
+toml = "0.7.2"
+rapid-qoi = "0.6.1"
 serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1.0.91"
 clap = { version = "4.1.1", features = ["derive"] }
@@ -22,7 +24,6 @@ anyhow = "1.0.65"
 thiserror = "1.0.37"
 handlebars = "4.3.6"
 binary_rw = "4.0.4"
-
 
 [profile.release]
 lto = "thin"

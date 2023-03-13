@@ -8,27 +8,26 @@ It can be used for games with Godot, Monogame or a bunch more that needed to opt
 
 ### Usage
 This CLI Texture Packer is based around the config file, which you would have to create in order to pack the images.
-Example content of the config file with ron format:
-```ron
-// Json is also supported
-PackerConfig(
-    name: "gem-collections",
-    output_path: "out",
-    // In Json format, output_type is a string.
-    output_type: Json,
-    folders: [
-        "images/common",
-        "images/rare",
-        "images/legendary"
-    ],
-    options: PackerConfigOptions(
-        max_size: 4096,
-        show_extension: false,
-        features: (
-            nine_patch: true 
-        )
-    )
-)
+Example content of the config file with toml format:
+```toml
+name = "gem_collections"
+output_path = "samples/out"
+output_type = "Json"
+template_path = "samples/xml-template.xml"
+folders = [
+    "samples/images/common",
+    "samples/images/rare",
+    "samples/images/legendary",
+    "samples/images/rect"
+]
+
+[image_options]
+output_extension = "Png"
+max_size = 4096
+show_extension = false
+
+[features]
+nine_patch = true
 ```
 Then, in the CLI usage:
 
@@ -36,7 +35,7 @@ Then, in the CLI usage:
 
 Example:
 
-`cluttered config --input packer-config.ron`
+`cluttered config --input packer-config.toml`
 
 Alternatively, we can use the manual way, which we can use the argument called `pack`
 
@@ -49,10 +48,11 @@ Example:
 
 ## Pack Arguments
 
-|name         |description|
-|-------------|-----------|
-|--type       |Specify the output type.
-|--name       |Specify the name of the output.
+|name          |description|
+|--------------|-----------|
+|--type        |Specify the output type.
+|--name        |Specify the name of the output.
+|--templatepath|Specify the template path for the custom template output.
 
 ## Binary Format
 ```
@@ -102,7 +102,7 @@ Example usage on xml format:
 |atlas        |PackerAtlas
 
 
-### PackerConfig
+### Config
 
 |Name         |Type       |
 |-------------|-----------|
@@ -111,7 +111,8 @@ Example usage on xml format:
 |output_type  |OutputType/String
 |folders      |String[]
 |template_path|String?
-|options      |PackerConfigOptions
+|options      |ImageOptions
+|features     |Features
 
 ### OutputType
 |Name         |
@@ -122,12 +123,21 @@ Example usage on xml format:
 |Template     |
 
 
-### PackerConfigOptions
-|Name          |Type       |
-|--------------|-----------|
-|max_size      |int
-|show_extension|bool
-|features      |Features
+### ImageOptions
+|Name             |Type |
+|-----------------|-----|
+|max_size         |int  |
+|output_extension |OutputExtensionType/String 
+|show_extension   |bool
+
+
+### OutputExtensionType 
+| Name |
+|------|
+|Png   |
+|Qoi   |
+|Jpg   |
+
 
 ### Features
 |Name          |Type       |

@@ -1,11 +1,12 @@
 use std::path::PathBuf;
+use ron::ser::{PrettyConfig, to_string_pretty};
 use serde_json as json;
 
 use binary_rw::{MemoryStream, BinaryWriter};
 
 use crate::error::PackerError;
 
-use super::{PackerAtlas, PackerConfig, TemplateGlobals};
+use super::{PackerAtlas, Config, TemplateGlobals};
 
 pub(super) trait Output {
     fn out(&self, path: PathBuf, atlas: PackerAtlas) -> anyhow::Result<()>;
@@ -15,10 +16,12 @@ pub(super) trait Output {
 pub(super) struct JsonOutput;
 #[derive(Default)]
 pub(super) struct RonOutput;
+#[derive(Default)]
+pub(super) struct TomlOutput;
 
-pub(super) struct BinaryOutput(pub(super) PackerConfig);
+pub(super) struct BinaryOutput(pub(super) Config);
 
-pub(super) struct TemplateOutput(pub(super) PackerConfig);
+pub(super) struct TemplateOutput(pub(super) Config);
 
 impl Output for TemplateOutput {
     fn out(&self, path: PathBuf, atlas: PackerAtlas) -> anyhow::Result<()> {
@@ -45,8 +48,8 @@ impl Output for TemplateOutput {
 }
 
 impl Output for JsonOutput {
-    fn out(&self, mut path: PathBuf, atlas: PackerAtlas) -> anyhow::Result<()> {
-        path.set_extension("json");
+    fn out(&self, path: PathBuf, atlas: PackerAtlas) -> anyhow::Result<()> {
+        let path = path.with_extension("json");
         let packer_atlas = json::to_string_pretty::<PackerAtlas>(&atlas)?.replace("\\\\", "/");
         std::fs::write(path, packer_atlas)?;
         Ok(())
@@ -54,17 +57,29 @@ impl Output for JsonOutput {
 }
 
 impl Output for RonOutput {
-    fn out(&self, mut path: PathBuf, atlas: PackerAtlas) -> anyhow::Result<()> {
-        path.set_extension("ron");
-        let packer_atlas = ron::to_string::<PackerAtlas>(&atlas)?.replace("\\\\", "/");
+    fn out(&self, path: PathBuf, atlas: PackerAtlas) -> anyhow::Result<()> {
+        let path = path.with_extension("ron");
+        let packer_atlas = to_string_pretty::<PackerAtlas>(&atlas, PrettyConfig::default())?
+            .replace("\\\\", "/");
+        std::fs::write(path, packer_atlas)?;
+        Ok(())
+    }
+}
+
+impl Output for TomlOutput {
+    fn out(&self, path: PathBuf, atlas: PackerAtlas) -> anyhow::Result<()> {
+        let path = path.with_extension("toml");
+        let packer_atlas = toml::to_string_pretty::<PackerAtlas>(&atlas)?
+            .replace("\\\\", "/")
+            .replace('\\', "/");
         std::fs::write(path, packer_atlas)?;
         Ok(())
     }
 }
 
 impl Output for BinaryOutput {
-    fn out(&self, mut path: PathBuf, atlas: PackerAtlas) -> anyhow::Result<()> {
-        path.set_extension("bin");
+    fn out(&self, path: PathBuf, atlas: PackerAtlas) -> anyhow::Result<()> {
+        let path = path.with_extension("bin");
         let mut fs = MemoryStream::new();
         let mut writer = binary_rw::BinaryWriter::new(&mut fs, binary_rw::Endian::Little);
         let sheet_path = atlas.sheet_path.to_str().unwrap_or_default().replace('\\', "/");
@@ -78,7 +93,7 @@ impl Output for BinaryOutput {
             writer.write_u32(data.y)?;
             writer.write_u32(data.width)?;
             writer.write_u32(data.height)?;
-            if !self.0.options.features.nine_patch {
+            if !self.0.features.nine_patch {
                 continue;
             }
             writer.write_bool(data.nine_patch.is_some())?;

@@ -1,0 +1,18 @@
+name = "gem_collections"
+output_path = "samples/out"
+output_type = "Json"
+template_path = "samples/xml-template.xml"
+folders = [
+    "samples/images/common",
+    "samples/images/rare",
+    "samples/images/legendary",
+    "samples/images/rect"
+]
+
+[image_options]
+output_extension = "Qoi"
+max_size = 4096
+show_extension = false
+
+[features]
+nine_patch = true

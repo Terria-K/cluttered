@@ -1,4 +1,4 @@
-PackerConfig(
+Config(
     name: "gem-collections",
     output_path: "samples/out",
     output_type: Binary,
@@ -9,12 +9,12 @@ PackerConfig(
         "samples/images/legendary",
         "samples/images/rect"
     ],
-    options: PackerConfigOptions(
+    image_options: ImageOptions(
+        output_extension: Qoi,
         max_size: 4096,
 		show_extension: false,
-        color_key: Color(r: 255, g: 0, b: 0, a: 255),
-        features: (
-            nine_patch: true
-        )
+    ),
+    features: (
+        nine_patch: true
     )
 )

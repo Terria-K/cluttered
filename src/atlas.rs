@@ -1,53 +1,73 @@
 extern crate binary_rw;
 mod output;
-use std::{path::{PathBuf, Path}, collections::HashMap};
+use std::{path::{PathBuf, Path}, collections::HashMap, io::Write};
 
 use crunch::{Item, Rotation};
-use image::{RgbaImage, ImageBuffer, GenericImage, GenericImageView};
+use image::{RgbaImage, ImageBuffer, GenericImage, GenericImageView, Rgba};
 
 use crate::error::PackerError;
 
-use self::output::{save_output, JsonOutput, BinaryOutput, RonOutput, save_output_from, TemplateOutput};
+use self::output::{save_output, JsonOutput, BinaryOutput, RonOutput, save_output_from, TemplateOutput, TomlOutput};
 
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
-pub struct PackerConfig {
+pub struct Config {
     pub name: String,
     pub output_path: PathBuf,
-    pub output_type: OutputType,
     pub folders: Vec<PathBuf>,
     pub template_path: Option<PathBuf>,
+
     #[serde(default)]
-    pub options: PackerConfigOptions
+    pub output_type: OutputType,
+    #[serde(default)]
+    pub image_options: ImageOptions,
+    #[serde(default)]
+    pub features: Features
 }
 
-impl PackerConfig {
-    pub fn from_json(path: PathBuf) -> anyhow::Result<PackerConfig> {
+impl Config {
+    pub fn from_json(path: PathBuf) -> anyhow::Result<Config> {
         let buffer = std::fs::read(path)?;
-        let packer_atlas = serde_json::from_slice::<PackerConfig>(&buffer)?;
+        let packer_atlas = serde_json::from_slice::<Config>(&buffer)?;
         Ok(packer_atlas)
     }
 
-    pub fn from_ron(path: PathBuf) -> anyhow::Result<PackerConfig> {
+    pub fn from_ron(path: PathBuf) -> anyhow::Result<Config> {
         let buffer = std::fs::read_to_string(path)?;
-        let packer_atlas = ron::from_str::<PackerConfig>(&buffer)?;
+        let packer_atlas = ron::from_str::<Config>(&buffer)?;
+        Ok(packer_atlas)
+    }
+
+    pub fn from_toml(path: PathBuf) -> anyhow::Result<Config> {
+        let buffer = std::fs::read_to_string(path)?;
+        let packer_atlas = toml::from_str::<Config>(&buffer)?;
         Ok(packer_atlas)
     }
 }
 
-#[derive(serde::Deserialize, serde::Serialize, clap::ValueEnum, Clone)]
+#[derive(serde::Deserialize, serde::Serialize, Default, clap::ValueEnum, Clone)]
 pub enum OutputType {
+    #[default]
     Json,
     Binary,
     Ron,
-    Template
+    Template,
+    Toml
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Default, clap::ValueEnum, Clone)]
+pub enum OutputExtensionType {
+    #[default]
+    Png,
+    Qoi,
+    Jpg
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
-pub struct PackerConfigOptions {
+pub struct ImageOptions {
+    #[serde(default)]
+    pub output_extension: OutputExtensionType,
     max_size: usize,
     show_extension: bool,
-    #[serde(default)]
-    features: Features
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Clone, Default)]
@@ -55,12 +75,12 @@ pub struct Features {
     nine_patch: bool
 }
 
-impl Default for PackerConfigOptions {
+impl Default for ImageOptions {
     fn default() -> Self {
-        PackerConfigOptions { 
+        ImageOptions { 
+            output_extension: OutputExtensionType::default(),
             max_size: 1024,
             show_extension: true,
-            features: Features::default()
         }
     }
 }
@@ -152,7 +172,41 @@ fn find_nine_patch_file(filename: &Path) -> Option<Rect> {
     Some(rect)
 }
 
-pub fn pack(config: PackerConfig) -> anyhow::Result<()> {
+type Texture2D = ImageBuffer<Rgba<u8>, Vec<u8>>;
+
+fn save_as(mut path: PathBuf, texture: Texture2D, output_ext: &OutputExtensionType) 
+    -> anyhow::Result<PathBuf> {
+    let ext: String = match output_ext {
+        OutputExtensionType::Png => {
+            let path = path.with_extension("png");
+            texture.save_with_format(path, image::ImageFormat::Png)?;
+            "png".into()
+        }
+        OutputExtensionType::Qoi => {
+            let path = path.with_extension("qoi");
+            let bytes = texture.to_vec();
+            let encoded = rapid_qoi::Qoi {
+                width: texture.width(),
+                height: texture.height(),
+                colors: rapid_qoi::Colors::Rgba
+            };
+            let file = std::fs::File::create(path)?;
+            let out_bytes = encoded.encode_alloc(&bytes)?;
+            let mut buf = std::io::BufWriter::new(file);
+            let _ = buf.write(&out_bytes)?;
+            "qoi".into()
+        },
+        OutputExtensionType::Jpg => {
+            let path = path.with_extension("jpg");
+            texture.save_with_format(path, image::ImageFormat::Jpeg)?;
+            "jpg".into()
+        }
+    };
+    path.push(ext);
+    Ok(path)
+}
+
+pub fn pack(config: Config) -> anyhow::Result<()> {
     let mut image_paths = vec![];
 
     for folder in config.folders.iter() {
@@ -164,10 +218,10 @@ pub fn pack(config: PackerConfig) -> anyhow::Result<()> {
             return None;
         }
         println!("Found {}", file.display());
-        let nine_patch = if config.options.features.nine_patch {
+        let nine_patch = if config.features.nine_patch {
             find_nine_patch_file(file)
         } else { None };
-        let filename = if !config.options.show_extension {
+        let filename = if !config.image_options.show_extension {
             file.with_extension("").to_str().unwrap_or_default().to_owned()
         } else {
             file.to_str().unwrap_or_default().to_owned()
@@ -180,7 +234,7 @@ pub fn pack(config: PackerConfig) -> anyhow::Result<()> {
         Item::new(img, img.img.width() as usize, img.img.height() as usize, Rotation::None)
     ).collect::<Vec<Item<&ImageTexture>>>();
 
-    if let Ok((w, h, packed)) = crunch::pack_into_po2(config.options.max_size, items) {
+    if let Ok((w, h, packed)) = crunch::pack_into_po2(config.image_options.max_size, items) {
         let mut atlas_json = PackerAtlas::default();
         let mut atlas: RgbaImage = ImageBuffer::from_fn(
             w as u32, 
@@ -201,8 +255,9 @@ pub fn pack(config: PackerConfig) -> anyhow::Result<()> {
         
         let mut path = config.output_path.clone();
         path.push(&config.name);
-        path.set_extension("png");
-        atlas_json.add_sheet_path(&path);
+        let ext = save_as(path, atlas, &config.image_options.output_extension)?;
+        atlas_json.add_sheet_path(&ext);
+
 
         let mut file_path = config.output_path.clone();
         file_path.push(&config.name);
@@ -211,11 +266,12 @@ pub fn pack(config: PackerConfig) -> anyhow::Result<()> {
             std::fs::create_dir_all(&config.output_path)?;
         }
 
-        atlas.save(path)?;
+
         match config.output_type {
             OutputType::Json => save_output::<JsonOutput>(file_path, atlas_json)?,
             OutputType::Binary => save_output_from(BinaryOutput(config), file_path, atlas_json)?,
             OutputType::Ron => save_output::<RonOutput>(file_path, atlas_json)?,
+            OutputType::Toml => save_output::<TomlOutput>(file_path, atlas_json)?,
             OutputType::Template => save_output_from(
                 TemplateOutput(config), file_path, atlas_json
             )?
@@ -229,5 +285,5 @@ pub fn pack(config: PackerConfig) -> anyhow::Result<()> {
 #[derive(serde::Serialize)]
 struct TemplateGlobals {
     atlas: PackerAtlas,
-    config: PackerConfig
+    config: Config
 }
