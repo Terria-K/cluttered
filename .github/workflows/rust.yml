@@ -24,18 +24,18 @@ jobs:
     - name: Upload Artifact (Windows)
       uses: actions/upload-artifact@v1
       with:
-        name: artifact
+        name: windows
         path: ./target/release/cluttered.exe
       if: matrix.os == 'windows-latest'
     - name: Upload Artifact (Linux)
       uses: actions/upload-artifact@v1
       with:
-        name: artifact
+        name: linux
         path: ./target/release/cluttered
       if: matrix.os == 'ubuntu-latest'
     - name: Upload Artifact (Mac OS)
       uses: actions/upload-artifact@v1
       with:
-        name: artifact
+        name: macOS
         path: ./target/release/cluttered
       if: matrix.os == 'macOS-latest'
