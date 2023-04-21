@@ -29,7 +29,8 @@ impl<'a> TemplateOutput<'a> {
         template_path: &PathBuf
     ) -> anyhow::Result<()> {
         let template = std::fs::read_to_string(template_path)?;
-        let mut handlerbars = handlebars::Handlebars::new();
+        let mut handlerbars = handlebars_misc_helpers::new_hbs();
+        handlebars_misc_helpers::string_helpers::register(&mut handlerbars);
         handlerbars.set_strict_mode(true);
         handlerbars.register_template_string("t1", template)?;
         let extension = template_path
