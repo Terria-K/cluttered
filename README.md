@@ -110,8 +110,8 @@ Example usage on xml format:
 |output_path         |String
 |output_type         |OutputType
 |folders             |String[]
-|allow_normal_output |bool,
-|template_path       |String | String[]?
+|allow_normal_output |bool
+|template_path       |String or String[]?
 |options             |ImageOptions
 |features            |Features
 
