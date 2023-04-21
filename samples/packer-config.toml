@@ -1,7 +1,7 @@
 name = "gem_collections"
 output_path = "samples/out"
 output_type = "Json"
-template_path = "samples/xml-template.xml"
+template_path = ["samples/xml-template.xml", "samples/ratter-template.ratter"]
 folders = [
     "samples/images/common",
     "samples/images/rare",

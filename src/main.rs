@@ -2,7 +2,7 @@ mod atlas;
 mod error;
 use std::path::PathBuf;
 
-use atlas::{Config, ImageOptions, Features};
+use atlas::{Config, ImageOptions, Features, TemplatePath};
 
 use thiserror::Error;
 use clap::{Command, Arg, ArgMatches};
@@ -55,17 +55,20 @@ fn main() -> anyhow::Result<()> {
                 } else { 
                     output_path.to_str().unwrap_or("texture-name").to_string()
                 };
-                let template_path = sub_matches
-                    .get_one::<PathBuf>("template_path")
-                    .map(|x| x.to_owned());
                 let output_type = sub_matches
                     .get_one::<atlas::OutputType>("type")
                     .unwrap_or(&atlas::OutputType::Json)
                     .to_owned();
+                let template_path = sub_matches
+                    .get_one::<PathBuf>("template_path")
+                    .map(|x| x.to_owned())
+                    .map(TemplatePath::Single);
+
                 let config = Config {
                     name,
                     output_path,
                     output_type,
+                    allow_normal_output: true,
                     template_path,
                     folders,
                     image_options: ImageOptions::default(),

@@ -1,6 +1,6 @@
 [package]
 name = "cluttered"
-version = "0.7.0"
+version = "0.8.0"
 edition = "2021"
 description = "A CLI Texture Packer written in rust"
 readme = "README.md"
@@ -8,8 +8,6 @@ repository = "https://github.com/Terria-K/cluttered"
 license = "MIT"
 keywords = ["packer", "atlas", "sprite"]
 categories = ["graphics", "encoding", "command-line-utilities"]
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 crunch = "0.3.3"

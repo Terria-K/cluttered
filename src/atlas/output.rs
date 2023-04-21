@@ -1,12 +1,10 @@
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use ron::ser::{PrettyConfig, to_string_pretty};
 use serde_json as json;
 
 use binary_rw::{MemoryStream, BinaryWriter};
 
-use crate::error::PackerError;
-
-use super::{PackerAtlas, Config, TemplateGlobals};
+use super::{PackerAtlas, Config, TemplateGlobals, TemplatePath};
 
 pub(super) trait Output {
     fn out(&self, path: PathBuf, atlas: PackerAtlas) -> anyhow::Result<()>;
@@ -19,15 +17,17 @@ pub(super) struct RonOutput;
 #[derive(Default)]
 pub(super) struct TomlOutput;
 
-pub(super) struct BinaryOutput(pub(super) Config);
+pub(super) struct BinaryOutput<'a>(pub(super) &'a Config);
 
-pub(super) struct TemplateOutput(pub(super) Config);
+pub(super) struct TemplateOutput<'a>(pub(super) &'a Config, pub(super) TemplatePath);
 
-impl Output for TemplateOutput {
-    fn out(&self, path: PathBuf, atlas: PackerAtlas) -> anyhow::Result<()> {
-        let Some(ref template_path) = self.0.template_path else { 
-            Err(PackerError::NoTemplateFile)?
-        };
+impl<'a> TemplateOutput<'a> {
+    fn internal_out(
+        &self, 
+        path: &Path, 
+        atlas: PackerAtlas, 
+        template_path: &PathBuf
+    ) -> anyhow::Result<()> {
         let template = std::fs::read_to_string(template_path)?;
         let mut handlerbars = handlebars::Handlebars::new();
         handlerbars.set_strict_mode(true);
@@ -43,6 +43,21 @@ impl Output for TemplateOutput {
 
         let compiled = handlerbars.render("t1", &globals)?.replace('\\', "/");
         std::fs::write(template_path, compiled)?;
+
+        Ok(())
+    }
+}
+
+impl<'a> Output for TemplateOutput<'a> {
+    fn out(&self, path: PathBuf, atlas: PackerAtlas) -> anyhow::Result<()> {
+        match &self.1 {
+            super::TemplatePath::Single(x) => self.internal_out(&path, atlas, x)?,
+            super::TemplatePath::Multiple(x) => {
+                for template_path in x {
+                    self.internal_out(&path, atlas.clone(), template_path)?;
+                }
+            },
+        }
         Ok(())
     }
 }
@@ -77,7 +92,7 @@ impl Output for TomlOutput {
     }
 }
 
-impl Output for BinaryOutput {
+impl<'a> Output for BinaryOutput<'a> {
     fn out(&self, path: PathBuf, atlas: PackerAtlas) -> anyhow::Result<()> {
         let path = path.with_extension("bin");
         let mut fs = MemoryStream::new();

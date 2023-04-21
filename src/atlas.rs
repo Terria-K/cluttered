@@ -10,11 +10,22 @@ use crate::error::PackerError;
 use self::output::{save_output, JsonOutput, BinaryOutput, RonOutput, save_output_from, TemplateOutput, TomlOutput};
 
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
+#[serde(untagged)]
+pub enum TemplatePath {
+    Single(PathBuf),
+    Multiple(Vec<PathBuf>)
+}
+
+const fn default_allow_normal_output() -> bool { true }
+
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
 pub struct Config {
     pub name: String,
     pub output_path: PathBuf,
     pub folders: Vec<PathBuf>,
-    pub template_path: Option<PathBuf>,
+    #[serde(default = "default_allow_normal_output")]
+    pub allow_normal_output: bool,
+    pub template_path: Option<TemplatePath>,
 
     #[serde(default)]
     pub output_type: OutputType,
@@ -50,7 +61,6 @@ pub enum OutputType {
     Json,
     Binary,
     Ron,
-    Template,
     Toml
 }
 
@@ -85,7 +95,7 @@ impl Default for ImageOptions {
     }
 }
 
-#[derive(Default, serde::Serialize)]
+#[derive(Default, serde::Serialize, Clone)]
 struct PackerAtlas {
     sheet_path: PathBuf,
     frames: HashMap<String, TextureData>
@@ -115,7 +125,7 @@ struct Rect {
     w: u32, h: u32,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, Clone)]
 struct TextureData {
     x: u32,
     y: u32,
@@ -266,16 +276,22 @@ pub fn pack(config: Config) -> anyhow::Result<()> {
             std::fs::create_dir_all(&config.output_path)?;
         }
 
-
-        match config.output_type {
-            OutputType::Json => save_output::<JsonOutput>(file_path, atlas_json)?,
-            OutputType::Binary => save_output_from(BinaryOutput(config), file_path, atlas_json)?,
-            OutputType::Ron => save_output::<RonOutput>(file_path, atlas_json)?,
-            OutputType::Toml => save_output::<TomlOutput>(file_path, atlas_json)?,
-            OutputType::Template => save_output_from(
-                TemplateOutput(config), file_path, atlas_json
-            )?
+        let template_path = config.template_path.to_owned();
+        if let Some(template_path) = template_path {
+            save_output_from(
+                TemplateOutput(&config, template_path), file_path.clone(), atlas_json.clone())?
         }
+
+        if config.allow_normal_output {
+            match config.output_type {
+                OutputType::Json => save_output::<JsonOutput>(file_path, atlas_json)?,
+                OutputType::Binary => save_output_from(
+                    BinaryOutput(&config), file_path, atlas_json)?,
+                OutputType::Ron => save_output::<RonOutput>(file_path, atlas_json)?,
+                OutputType::Toml => save_output::<TomlOutput>(file_path, atlas_json)?,
+            }
+        }
+
         Ok(())
     } else {
         Err(PackerError::FailedToPacked)?

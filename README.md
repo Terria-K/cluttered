@@ -104,17 +104,18 @@ Example usage on xml format:
 
 ### Config
 
-|Name         |Type       |
-|-------------|-----------|
-|name         |String
-|output_path  |String
-|output_type  |OutputType/String
-|folders      |String[]
-|template_path|String?
-|options      |ImageOptions
-|features     |Features
+|Name                |Type       |
+|--------------------|-----------|
+|name                |String
+|output_path         |String
+|output_type         |OutputType
+|folders             |String[]
+|allow_normal_output |bool,
+|template_path       |String | String[]?
+|options             |ImageOptions
+|features            |Features
 
-### OutputType
+### OutputType (Strings on Json)
 |Name         |
 |-------------|
 |Json         |
@@ -127,11 +128,11 @@ Example usage on xml format:
 |Name             |Type |
 |-----------------|-----|
 |max_size         |int  |
-|output_extension |OutputExtensionType/String 
+|output_extension |OutputExtensionType
 |show_extension   |bool
 
 
-### OutputExtensionType 
+### OutputExtensionType (Strings on Json)
 | Name |
 |------|
 |Png   |
@@ -157,7 +158,7 @@ Example usage on xml format:
 |y             |int
 |width         |int
 |height        |int
-|nine_patch    |Option<Rect>
+|nine_patch    |Rect?
 
 ### Rect
 |Name          |Type       |
