@@ -60,7 +60,7 @@ fn main() -> anyhow::Result<()> {
                     .unwrap_or(&atlas::OutputType::Json)
                     .to_owned();
                 let template_path = sub_matches
-                    .get_one::<PathBuf>("template_path")
+                    .get_one::<PathBuf>("templatepath")
                     .map(|x| x.to_owned())
                     .map(TemplatePath::Single);
 
@@ -133,7 +133,7 @@ fn cli() -> Command {
                 .arg(Arg::new("templatepath")
                      .short('a')
                      .value_parser(clap::value_parser!(PathBuf))
-                     .long("template_path")
+                     .long("templatepath")
                      .required(false)
                      .num_args(1)
                      .help("Specify a Template path for template."))
