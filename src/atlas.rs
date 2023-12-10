@@ -36,19 +36,35 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn from_json(path: PathBuf) -> anyhow::Result<Config> {
+    pub fn fixed_output_path(&self, input_path: &Option<PathBuf>) -> PathBuf {
+        let out_path = self.output_path.to_str().unwrap_or_default().to_string();
+        let path_string = if let Some(ref path) = input_path {
+            if let Some(parent) = path.parent() {
+                parent.join(out_path).to_str().unwrap_or_default().into()
+            } else {
+                out_path
+            }
+        } else {
+            out_path
+        };
+
+        PathBuf::from(path_string)
+    }
+
+
+    pub fn from_json(path: &PathBuf) -> anyhow::Result<Config> {
         let buffer = std::fs::read(path)?;
         let packer_atlas = serde_json::from_slice::<Config>(&buffer)?;
         Ok(packer_atlas)
     }
 
-    pub fn from_ron(path: PathBuf) -> anyhow::Result<Config> {
+    pub fn from_ron(path: &PathBuf) -> anyhow::Result<Config> {
         let buffer = std::fs::read_to_string(path)?;
         let packer_atlas = ron::from_str::<Config>(&buffer)?;
         Ok(packer_atlas)
     }
 
-    pub fn from_toml(path: PathBuf) -> anyhow::Result<Config> {
+    pub fn from_toml(path: &PathBuf) -> anyhow::Result<Config> {
         let buffer = std::fs::read_to_string(path)?;
         let packer_atlas = toml::from_str::<Config>(&buffer)?;
         Ok(packer_atlas)
@@ -216,10 +232,18 @@ fn save_as(mut path: PathBuf, texture: Texture2D, output_ext: &OutputExtensionTy
     Ok(path)
 }
 
-pub fn pack(config: Config) -> anyhow::Result<()> {
+pub fn pack(config: Config, input_path: Option<PathBuf>) -> anyhow::Result<()> {
     let mut image_paths = vec![];
 
     for folder in config.folders.iter() {
+        if let Some(ref path) = input_path {
+            if let Some(parent) = path.parent() {
+                let parent = parent.join(folder);
+                visit_dir(parent, &mut image_paths)?;
+                continue;
+            }
+        }
+
         visit_dir(folder.to_path_buf(), &mut image_paths)?;
     }
 
@@ -227,7 +251,7 @@ pub fn pack(config: Config) -> anyhow::Result<()> {
         if get_extension_from_filename(file) != Some("png") {
             return None;
         }
-        println!("Found {}", file.display());
+        println!("Found Image: {}", file.display());
         let nine_patch = if config.features.nine_patch {
             find_nine_patch_file(file)
         } else { None };
@@ -236,7 +260,20 @@ pub fn pack(config: Config) -> anyhow::Result<()> {
         } else {
             file.to_str().unwrap_or_default().to_owned()
         };
+
+        let filename = filename.replace('\\', "/");
         let Ok(img) = image::open(file) else { return None };
+        let filename = if let Some(ref path) = input_path {
+            if let Some(parent) = path.parent() {
+                let parent: String = parent.to_str().unwrap_or_default().into();
+                filename.trim_start_matches(&format!("{parent}/")).into()
+            } else {
+                filename
+            }
+        } else {
+            filename
+        };
+        println!("{}", filename);
         Some(ImageTexture::new(filename, img.to_rgba8(), nine_patch))
     }).collect::<Vec<ImageTexture>>();
 
@@ -262,24 +299,27 @@ pub fn pack(config: Config) -> anyhow::Result<()> {
             atlas_json.add(
                 &image_data.name, x, y, rect.w as u32, rect.h as u32, image_data.nine_patch);
         }
+
+        let config_path = config.fixed_output_path(&input_path);
+
+        if !config_path.is_dir() {
+            std::fs::create_dir_all(&config_path)?;
+        }
         
-        let mut path = config.output_path.clone();
+        let mut path = config.fixed_output_path(&input_path);
         path.push(&config.name);
         let ext = save_as(path, atlas, &config.image_options.output_extension)?;
         atlas_json.add_sheet_path(&ext);
 
 
-        let mut file_path = config.output_path.clone();
+        let mut file_path = config.fixed_output_path(&input_path);
         file_path.push(&config.name);
 
-        if !config.output_path.is_dir() {
-            std::fs::create_dir_all(&config.output_path)?;
-        }
 
         let template_path = config.template_path.to_owned();
         if let Some(template_path) = template_path {
             save_output_from(
-                TemplateOutput(&config, template_path), file_path.clone(), atlas_json.clone())?
+                TemplateOutput(&config, template_path, &input_path), file_path.clone(), atlas_json.clone())?
         }
 
         if config.allow_normal_output {

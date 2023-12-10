@@ -29,16 +29,16 @@ fn main() -> anyhow::Result<()> {
                 let extension = extension.to_str().unwrap_or_default();
                 match extension {
                     "ron" => {
-                        let config = Config::from_ron(input_path)?;
-                        atlas::pack(config)?;
+                        let config = Config::from_ron(&input_path)?;
+                        atlas::pack(config, Some(input_path))?;
                     }
                     "json" => {
-                        let config = Config::from_json(input_path)?;
-                        atlas::pack(config)?;
+                        let config = Config::from_json(&input_path)?;
+                        atlas::pack(config, Some(input_path))?;
                     }
                     "toml" => {
-                        let config = Config::from_toml(input_path)?;
-                        atlas::pack(config)?;
+                        let config = Config::from_toml(&input_path)?;
+                        atlas::pack(config, Some(input_path))?;
                     }
                     _ => Err(CommandError::UnsupportedFormat)?
                 }
@@ -74,7 +74,7 @@ fn main() -> anyhow::Result<()> {
                     image_options: ImageOptions::default(),
                     features: Features::default(),
                 };
-                atlas::pack(config)?;
+                atlas::pack(config, None)?;
             }
 
         }

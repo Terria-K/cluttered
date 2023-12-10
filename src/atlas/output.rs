@@ -19,7 +19,11 @@ pub(super) struct TomlOutput;
 
 pub(super) struct BinaryOutput<'a>(pub(super) &'a Config);
 
-pub(super) struct TemplateOutput<'a>(pub(super) &'a Config, pub(super) TemplatePath);
+pub(super) struct TemplateOutput<'a>(
+    pub(super) &'a Config, 
+    pub(super) TemplatePath,
+    pub(super) &'a Option<PathBuf>
+);
 
 impl<'a> TemplateOutput<'a> {
     fn internal_out(
@@ -51,12 +55,34 @@ impl<'a> TemplateOutput<'a> {
 
 impl<'a> Output for TemplateOutput<'a> {
     fn out(&self, path: PathBuf, atlas: PackerAtlas) -> anyhow::Result<()> {
+        let fixed_path = |x: &PathBuf, input: &PathBuf| {
+            if let Some(parent) = input.parent() {
+                parent.join(x)
+            } else {
+                x.to_owned()
+            }
+        };
+
         match &self.1 {
-            super::TemplatePath::Single(x) => self.internal_out(&path, atlas, x)?,
-            super::TemplatePath::Multiple(x) => {
-                for template_path in x {
-                    self.internal_out(&path, atlas.clone(), template_path)?;
+            super::TemplatePath::Single(x) => {
+                if let Some(input_path) = self.2 {
+                    self.internal_out(&path, atlas, &fixed_path(x, input_path))?
+                } else {
+                    self.internal_out(&path, atlas, x)?
                 }
+            },
+            super::TemplatePath::Multiple(x) => {
+                if let Some(input_path) = self.2 {
+                    for template_path in x {
+                        self.internal_out(
+                            &path, atlas.clone(), &fixed_path(template_path, input_path))?
+                    }
+                } else {
+                    for template_path in x {
+                        self.internal_out(&path, atlas.clone(), template_path)?
+                    }
+                }
+
             },
         }
         Ok(())

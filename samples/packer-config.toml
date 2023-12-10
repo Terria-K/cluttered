@@ -1,12 +1,12 @@
 name = "gem_collections"
-output_path = "samples/out"
+output_path = "out"
 output_type = "Json"
-template_path = ["samples/xml-template.xml", "samples/ratter-template.cs"]
+template_path = ["xml-template.xml", "ratter-template.cs"]
 folders = [
-    "samples/images/common",
-    "samples/images/rare",
-    "samples/images/legendary",
-    "samples/images/rect"
+    "images/common",
+    "images/rare",
+    "images/legendary",
+    "images/rect"
 ]
 
 [image_options]
