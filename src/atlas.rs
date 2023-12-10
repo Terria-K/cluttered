@@ -261,7 +261,9 @@ pub fn pack(config: Config, input_path: Option<PathBuf>) -> anyhow::Result<()> {
             file.to_str().unwrap_or_default().to_owned()
         };
 
-        let filename = filename.replace('\\', "/");
+        let filename = filename
+            .replace('\\', "/")
+            .replace("./", "");
         let Ok(img) = image::open(file) else { return None };
         let filename = if let Some(ref path) = input_path {
             if let Some(parent) = path.parent() {
