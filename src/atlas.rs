@@ -250,7 +250,7 @@ pub fn pack(config: Config, input_path: Option<PathBuf>) -> anyhow::Result<()> {
 
         visit_dir(folder.to_path_buf(), &mut image_paths)?;
     }
-    let mut temp_ase: Option<Vec<ImageTexture>> = None;
+    let mut temp_ase: Vec<ImageTexture> = vec![];
 
     let mut images = image_paths.iter().filter_map(|file| {
         let mut ext = "png";
@@ -304,7 +304,7 @@ pub fn pack(config: Config, input_path: Option<PathBuf>) -> anyhow::Result<()> {
                 filename + "/0"
             };
 
-            temp_ase = Some(images);
+            temp_ase.append(&mut images);
 
             Some(ImageTexture::new(filename, ase.frame(0).image(), nine_patch))
         } else {
@@ -315,9 +315,7 @@ pub fn pack(config: Config, input_path: Option<PathBuf>) -> anyhow::Result<()> {
         }
     }).collect::<Vec<ImageTexture>>();
 
-    if let Some(mut temp_ase) = temp_ase {
-        images.append(&mut temp_ase);
-    }
+    images.append(&mut temp_ase);
 
     let items = images.iter().map(|img|
         Item::new(img, img.img.width() as usize, img.img.height() as usize, Rotation::None)
