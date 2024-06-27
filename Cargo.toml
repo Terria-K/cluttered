@@ -1,6 +1,6 @@
 [package]
 name = "cluttered"
-version = "0.10.0"
+version = "0.10.1"
 edition = "2021"
 description = "A CLI Texture Packer written in rust"
 readme = "README.md"
