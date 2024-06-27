@@ -2,6 +2,7 @@ extern crate binary_rw;
 mod output;
 use std::{path::{PathBuf, Path}, collections::HashMap, io::Write};
 
+use asefile::AsepriteFile;
 use crunch::{Item, Rotation};
 use image::{RgbaImage, ImageBuffer, GenericImage, GenericImageView, Rgba};
 
@@ -98,12 +99,15 @@ pub struct ImageOptions {
 
 #[derive(serde::Deserialize, serde::Serialize, Clone, Default)]
 pub struct Features {
-    nine_patch: bool
+    #[serde(default)]
+    nine_patch: bool,
+    #[serde(default)]
+    aseprite: bool
 }
 
 impl Default for ImageOptions {
     fn default() -> Self {
-        ImageOptions { 
+        ImageOptions {
             output_extension: OutputExtensionType::default(),
             max_size: 1024,
             show_extension: true,
@@ -119,10 +123,10 @@ struct PackerAtlas {
 
 impl PackerAtlas {
     fn add(
-        &mut self, 
-        name: &str, 
-        x: u32, y: u32, 
-        width: u32, height: u32, 
+        &mut self,
+        name: &str,
+        x: u32, y: u32,
+        width: u32, height: u32,
         nine_patch: Option<Rect>
     ) {
         self.frames.insert(name.into(), TextureData {
@@ -189,7 +193,7 @@ fn get_extension_from_filename(filename: &Path) -> Option<&str> {
 
 fn find_nine_patch_file(filename: &Path) -> Option<Rect> {
     let filename = filename.with_extension("json");
-    let Ok(file) = std::fs::read_to_string(&filename) else { 
+    let Ok(file) = std::fs::read_to_string(&filename) else {
         let Ok(file) = std::fs::read_to_string(filename.with_extension("ron")) else { return None };
         let Ok(rect) = ron::from_str::<Rect>(&file) else { return None };
         return Some(rect);
@@ -200,7 +204,7 @@ fn find_nine_patch_file(filename: &Path) -> Option<Rect> {
 
 type Texture2D = ImageBuffer<Rgba<u8>, Vec<u8>>;
 
-fn save_as(mut path: PathBuf, texture: Texture2D, output_ext: &OutputExtensionType) 
+fn save_as(mut path: PathBuf, texture: Texture2D, output_ext: &OutputExtensionType)
     -> anyhow::Result<PathBuf> {
     let ext: String = match output_ext {
         OutputExtensionType::Png => {
@@ -246,11 +250,21 @@ pub fn pack(config: Config, input_path: Option<PathBuf>) -> anyhow::Result<()> {
 
         visit_dir(folder.to_path_buf(), &mut image_paths)?;
     }
+    let mut temp_ase: Option<Vec<ImageTexture>> = None;
 
-    let images = image_paths.iter().filter_map(|file| {
+    let mut images = image_paths.iter().filter_map(|file| {
+        let mut ext = "png";
         if get_extension_from_filename(file) != Some("png") {
-            return None;
+            if config.features.aseprite {
+                if get_extension_from_filename(file) != Some("aseprite") {
+                    return None;
+                }
+                ext = "aseprite";
+            } else {
+                return None;
+            }
         }
+
         println!("Found Image: {}", file.display());
         let nine_patch = if config.features.nine_patch {
             find_nine_patch_file(file)
@@ -264,7 +278,7 @@ pub fn pack(config: Config, input_path: Option<PathBuf>) -> anyhow::Result<()> {
         let filename = filename
             .replace('\\', "/")
             .replace("./", "");
-        let Ok(img) = image::open(file) else { return None };
+
         let filename = if let Some(ref path) = input_path {
             if let Some(parent) = path.parent() {
                 let parent: String = parent.to_str().unwrap_or_default().into();
@@ -275,19 +289,45 @@ pub fn pack(config: Config, input_path: Option<PathBuf>) -> anyhow::Result<()> {
         } else {
             filename
         };
-        println!("{}", filename);
-        Some(ImageTexture::new(filename, img.to_rgba8(), nine_patch))
+        if ext == "aseprite" {
+            let Ok(ase) = AsepriteFile::read_file(file) else { return None };
+            let frames = ase.num_frames();
+            let mut images = vec![];
+            for i in 1..frames {
+                let cel = ase.frame(i);
+                images.push(ImageTexture::new(format!("{}/{}", filename, i.to_string()), cel.image(), nine_patch))
+            }
+
+            let filename = if frames == 1 {
+                filename
+            } else {
+                filename + "/0"
+            };
+
+            temp_ase = Some(images);
+
+            Some(ImageTexture::new(filename, ase.frame(0).image(), nine_patch))
+        } else {
+            let Ok(img) = image::open(file) else { return None };
+
+            println!("{}", filename);
+            Some(ImageTexture::new(filename, img.to_rgba8(), nine_patch))
+        }
     }).collect::<Vec<ImageTexture>>();
 
-    let items = images.iter().map(|img| 
+    if let Some(mut temp_ase) = temp_ase {
+        images.append(&mut temp_ase);
+    }
+
+    let items = images.iter().map(|img|
         Item::new(img, img.img.width() as usize, img.img.height() as usize, Rotation::None)
     ).collect::<Vec<Item<&ImageTexture>>>();
 
     if let Ok((w, h, packed)) = crunch::pack_into_po2(config.image_options.max_size, items) {
         let mut atlas_json = PackerAtlas::default();
         let mut atlas: RgbaImage = ImageBuffer::from_fn(
-            w as u32, 
-            h as u32, 
+            w as u32,
+            h as u32,
             |_, _| image::Rgba([0, 0, 0, 0])
         );
 
@@ -296,7 +336,7 @@ pub fn pack(config: Config, input_path: Option<PathBuf>) -> anyhow::Result<()> {
             let (x, y) = (rect.x as u32, rect.y as u32);
             let (width, height) = (rect.w as u32, rect.h as u32);
 
-            let view = image_data.img.view(0, 0, width, height);
+            let view = image_data.img.view(0, 0, width, height).to_image();
             atlas.copy_from(&view, x, y)?;
             atlas_json.add(
                 &image_data.name, x, y, rect.w as u32, rect.h as u32, image_data.nine_patch);
@@ -307,7 +347,7 @@ pub fn pack(config: Config, input_path: Option<PathBuf>) -> anyhow::Result<()> {
         if !config_path.is_dir() {
             std::fs::create_dir_all(&config_path)?;
         }
-        
+
         let mut path = config.fixed_output_path(&input_path);
         path.push(&config.name);
         let ext = save_as(path, atlas, &config.image_options.output_extension)?;

@@ -6,11 +6,12 @@ folders = [
     "images/common",
     "images/rare",
     "images/legendary",
-    "images/rect"
+    "images/rect",
+    "images/aseprites"
 ]
 
 [image_options]
-output_extension = "Qoi"
+output_extension = "Png"
 max_size = 4096
 show_extension = false
 

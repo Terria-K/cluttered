@@ -1,4 +1,4 @@
-<TextureAtlas imagePath="samples/out/gem_collections/qoi">
+<TextureAtlas imagePath="samples/out/gem_collections/png">
   <Texture name="images/common/gems1" x="30" y="122" width="4" height="10"
     />
   <Texture name="images/common/gems10" x="170" y="100" width="4" height="10"
