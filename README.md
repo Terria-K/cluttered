@@ -82,9 +82,9 @@ Example usage on xml format:
 ```xml
 <TextureAtlas imagePath="{{atlas.sheet_path}}">
   {{#each atlas.frames as frame}}
-  <Texture 
-      name="{{@key}}" 
-      x="{{this.x}}" y="{{this.y}}" 
+  <Texture
+      name="{{@key}}"
+      x="{{this.x}}" y="{{this.y}}"
       width="{{this.width}}" height="{{this.height}}"
       {{#if this.nine_patch}}
       nx="{{this.nine_patch.x}}" ny="{{this.nine_patch.y}}"
@@ -144,6 +144,7 @@ Example usage on xml format:
 |Name          |Type       |
 |--------------|-----------|
 |nine_patch    |bool
+|aseprite      |bool
 
 ### PackerAtlas
 |Name          |Type       |
