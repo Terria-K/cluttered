@@ -18,3 +18,4 @@ show_extension = false
 [features]
 nine_patch = true
 aseprite = true
+ase_one_frame = true

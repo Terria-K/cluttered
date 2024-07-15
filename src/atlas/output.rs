@@ -20,16 +20,16 @@ pub(super) struct TomlOutput;
 pub(super) struct BinaryOutput<'a>(pub(super) &'a Config);
 
 pub(super) struct TemplateOutput<'a>(
-    pub(super) &'a Config, 
+    pub(super) &'a Config,
     pub(super) TemplatePath,
     pub(super) &'a Option<PathBuf>
 );
 
 impl<'a> TemplateOutput<'a> {
     fn internal_out(
-        &self, 
-        path: &Path, 
-        atlas: PackerAtlas, 
+        &self,
+        path: &Path,
+        atlas: PackerAtlas,
         template_path: &PathBuf
     ) -> anyhow::Result<()> {
         let template = std::fs::read_to_string(template_path)?;
@@ -125,12 +125,12 @@ impl<'a> Output for BinaryOutput<'a> {
         let mut fs = MemoryStream::new();
         let mut writer = binary_rw::BinaryWriter::new(&mut fs, binary_rw::Endian::Little);
         let sheet_path = atlas.sheet_path.to_str().unwrap_or_default().replace('\\', "/");
-        write_sharp_string(&mut writer, sheet_path)?;
+        writer.write_sharp_string(sheet_path)?;
         let length = atlas.frames.len();
         writer.write_u32(length as u32)?;
         for (frame_key, data) in atlas.frames {
             let frame_key = frame_key.replace('\\', "/");
-            write_sharp_string(&mut writer, frame_key)?;
+            writer.write_sharp_string(frame_key)?;
             writer.write_u32(data.x)?;
             writer.write_u32(data.y)?;
             writer.write_u32(data.width)?;
@@ -153,14 +153,6 @@ impl<'a> Output for BinaryOutput<'a> {
     }
 }
 
-fn write_sharp_string<S>(writer: &mut BinaryWriter, value: S) -> anyhow::Result<()>
-where S: AsRef<str> {
-    let bytes = value.as_ref().as_bytes();
-    writer.write_u8(bytes.len() as u8)?;
-    writer.write_bytes(bytes)?;
-    Ok(())
-}
-
 pub(super) fn save_output<T>(path: PathBuf, atlas: PackerAtlas) -> anyhow::Result<()>
 where T: Default + Output {
     let output = T::default();
@@ -168,10 +160,26 @@ where T: Default + Output {
 }
 
 pub(super) fn save_output_from<T>(
-    output: T, 
-    path: PathBuf, 
+    output: T,
+    path: PathBuf,
     atlas: PackerAtlas
 ) -> anyhow::Result<()>
 where T: Output {
     output.out(path, atlas)
+}
+
+
+pub(super) trait Sharp {
+    fn write_sharp_string<S>(&mut self, value: S) -> anyhow::Result<()>
+    where S: AsRef<str>;
+}
+
+impl<'a> Sharp for BinaryWriter<'a> {
+    fn write_sharp_string<S>(&mut self, value: S) -> anyhow::Result<()>
+    where S: AsRef<str> {
+        let bytes = value.as_ref().as_bytes();
+        self.write_u8(bytes.len() as u8)?;
+        self.write_bytes(bytes)?;
+        Ok(())
+    }
 }

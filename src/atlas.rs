@@ -102,7 +102,9 @@ pub struct Features {
     #[serde(default)]
     nine_patch: bool,
     #[serde(default)]
-    aseprite: bool
+    aseprite: bool,
+    #[serde(default)]
+    ase_sheet: bool
 }
 
 impl Default for ImageOptions {
@@ -291,22 +293,11 @@ pub fn pack(config: Config, input_path: Option<PathBuf>) -> anyhow::Result<()> {
         };
         if ext == "aseprite" {
             let Ok(ase) = AsepriteFile::read_file(file) else { return None };
-            let frames = ase.num_frames();
-            let mut images = vec![];
-            for i in 1..frames {
-                let cel = ase.frame(i);
-                images.push(ImageTexture::new(format!("{}/{}", filename, i.to_string()), cel.image(), nine_patch))
-            }
-
-            let filename = if frames == 1 {
-                filename
-            } else {
-                filename + "/0"
-            };
+            let Ok(mut images) = process_ase(ase, filename, nine_patch, config.features.ase_sheet) else { return None };
 
             temp_ase.append(&mut images);
 
-            Some(ImageTexture::new(filename, ase.frame(0).image(), nine_patch))
+            None
         } else {
             let Ok(img) = image::open(file) else { return None };
 
@@ -376,6 +367,65 @@ pub fn pack(config: Config, input_path: Option<PathBuf>) -> anyhow::Result<()> {
     } else {
         Err(PackerError::FailedToPacked)?
     }
+}
+
+struct AseItem {
+    row: u32,
+    column: u32,
+    frame: u32
+}
+
+fn process_ase(ase: AsepriteFile, filename: String, nine_patch: Option<Rect>, one_frame: bool) -> anyhow::Result<Vec<ImageTexture>> {
+    let frames = ase.num_frames();
+
+    let mut images = vec![];
+
+    if frames == 1 {
+        let img = ase.frame(0).image();
+        images.push(ImageTexture::new(filename, img, nine_patch));
+        return Ok(images);
+    }
+    if one_frame {
+        let iw = ase.width() as u32;
+        let ih = ase.height() as u32;
+
+        let mut ases = vec![];
+        let border_row = if frames < 4 {
+            frames / 2
+        } else {
+            frames / 4
+        };
+        let mut row = 0;
+        let mut column = 0;
+        for i in 0..frames {
+            if row == border_row {
+                column += 1;
+                row = 0;
+            }
+            ases.push(AseItem { row, column, frame: i });
+            row += 1;
+        }
+        column += 1;
+        let mut texture: RgbaImage = ImageBuffer::from_fn(
+            border_row * iw, column * ih,
+            |_, _| image::Rgba([0, 0, 0, 0])
+        );
+
+        for a in ases {
+            let cel = ase.frame(a.frame);
+            let img = cel.image().view(0, 0, iw, ih).to_image();
+            texture.copy_from(&img, a.row * iw, a.column * ih).unwrap();
+        }
+
+        images.push(ImageTexture::new(filename, texture, nine_patch))
+    } else {
+        for i in 0..frames {
+            let cel = ase.frame(i);
+            images.push(ImageTexture::new(format!("{}/{}", filename, i.to_string()), cel.image(), nine_patch))
+        }
+    }
+
+    Ok(images)
 }
 
 #[derive(serde::Serialize)]

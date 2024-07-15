@@ -2,11 +2,7 @@ namespace Cluttered;
 
 public static class AtlasPath 
 {
-  public const string images_aseprites_aseme_0 = "images/aseprites/aseme/0";
-  public const string images_aseprites_aseme_1 = "images/aseprites/aseme/1";
-  public const string images_aseprites_aseme_2 = "images/aseprites/aseme/2";
-  public const string images_aseprites_aseme_3 = "images/aseprites/aseme/3";
-  public const string images_aseprites_aseme_4 = "images/aseprites/aseme/4";
+  public const string images_aseprites_aseme = "images/aseprites/aseme";
   public const string images_aseprites_static = "images/aseprites/static";
   public const string images_common_gems1 = "images/common/gems1";
   public const string images_common_gems10 = "images/common/gems10";

@@ -145,6 +145,7 @@ Example usage on xml format:
 |--------------|-----------|
 |nine_patch    |bool
 |aseprite      |bool
+|ase_sheet     |bool
 
 ### PackerAtlas
 |Name          |Type       |
